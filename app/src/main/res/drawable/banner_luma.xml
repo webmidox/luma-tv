@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original banner: a ring with a play triangle on a dark plate, 320 x 180. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#FF12131C" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#337C5CFF" android:pathData="M60,90m-56,0a56,56 0 1,0 112,0a56,56 0 1,0 -112,0" />
+    <path android:strokeColor="#FF7C5CFF" android:strokeWidth="8" android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M60,90m-38,0a38,38 0 1,0 76,0a38,38 0 1,0 -76,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M51,72L51,108L81,90z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M138,64h10v52h-10z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M138,106h30v10h-30z" />
+    <path android:fillColor="#B3FFFFFF" android:pathData="M182,64h10v34a14,14 0 0 0 28,0v-34h10v34a24,24 0 0 1 -48,0z" />
+    <path android:fillColor="#B3FFFFFF" android:pathData="M258,116v-52h10l14,28l14,-28h10v52h-10v-30l-14,26l-14,-26v30z" />
+</vector>

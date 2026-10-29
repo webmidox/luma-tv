@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.luma.tv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.luma.tv'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+    }
+
+    buildTypes {
+        release {
+            // Sideloaded over ADB: sign with the debug key so it installs over a debug build.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    lint {
+        // Media3 marks most of its classes as unstable API; that warning is not useful for a sideloaded app.
+        disable 'UnsafeOptInUsageError'
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Serves the web interface from assets over https, so fetch() and storage behave like a normal site.
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    // The native player: HLS and plain MPEG-TS streams, which is what IPTV providers send.
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
+}

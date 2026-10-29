@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- Playlists, guide data and streams come from the owner's own provider. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only used by the update button in Settings, after the owner allows it. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Lets Settings read the installed launcher's version for its update check. -->
+    <queries>
+        <package android:name="com.gathin.tvhome" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:banner="@drawable/banner_luma"
+        android:icon="@drawable/ic_luma"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.Luma"
+        android:usesCleartextTraffic="true">
+
+        <!-- Tells the launcher where to read "Nu live" (contract: docs/modules.md, game_day). -->
+        <meta-data
+            android:name="com.gathin.tvhome.games"
+            android:value="com.luma.tv.now" />
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|uiMode|density"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
+            </intent-filter>
+            <meta-data
+                android:name="com.gathin.tvhome.card"
+                android:resource="@xml/module_card" />
+        </activity>
+
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|uiMode|density"
+            android:exported="false"
+            android:theme="@style/Theme.Luma.Player" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.luma.tv.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Read-only: the channel and programme that is on now, nothing private. -->
+        <provider
+            android:name=".NowProvider"
+            android:authorities="com.luma.tv.now"
+            android:exported="true" />
+    </application>
+</manifest>
