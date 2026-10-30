@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.38', ['Voor jou compact: titel, regel eronder, twee regels beschrijving en OK = kijken', 'De rijen schuiven onder de vaste bovenkant door', 'Streaming-rij met vierkante tegels (Netflix, Videoland, Prime enz.) uit de groepen op je server', 'Zwartere slideshow onderaan en bovenaan']],
     ['0.37', ['Bovenbalk weer effen zwart over de hele breedte, met de oranje selectie', 'Nieuwe, scherpere foto\'s in de slideshow op Voor jou', 'Het label LIVE bovenin de hero is weg; minder gespring bij het scrollen']],
     ['0.36', ['Sport op de achtergrond opgebouwd in kleine stukjes: geen vastlopen meer bij grote IPTV-lijsten']],
     ['0.35', ['Live TV: eigen fotoslideshow op de achtergrond (gedimd voor leesbaarheid), apart uit te zetten bij Uiterlijk']],
@@ -386,11 +387,12 @@
     else if (bgs === 'accent' || !info.title) bd.style.backgroundImage = 'radial-gradient(70rem 50rem at 85% 5%, ' + rgba(accent(), 0.22) + ', transparent)';
     else bd.style.backgroundImage = wash(seed);
     const set = function (id, t) { const e = $(id); if (e) e.textContent = t || ''; };
-    set('h-tag', /^(NU )?LIVE$/i.test(info.tag || '') ? '' : info.tag);
+    const compact = !!document.querySelector('.hmw');
+    set('h-tag', compact || /^(NU )?LIVE$/i.test(info.tag || '') ? '' : info.tag);
     set('h-title', info.title);
     set('h-sub', info.sub);
     set('h-desc', info.desc);
-    set('h-hint', info.hint);
+    set('h-hint', compact ? (info.title ? (info.hint || 'OK = kijken').split(' · ')[0] : '') : info.hint);
     const hero = document.querySelector('.hero');
     if (hero && on('effects') && !slidesOn) { hero.classList.remove('swp'); void hero.offsetWidth; hero.classList.add('swp'); }
     const tg = $('h-tag');
@@ -1251,6 +1253,59 @@
     play(list, list.indexOf(c));
   }
 
+  // ---------- streaming services (from the groups on the server) ----------
+  const STREAMS = [
+    ['netflix', /netflix/i, 'NETFLIX', '#e50914', '#fff'],
+    ['videoland', /videoland/i, 'videoland', '#e3003a', '#fff'],
+    ['prime', /prime|amazon/i, 'prime video', '#00a8e1', '#fff'],
+    ['disney', /disney/i, 'Disney+', '#0b2a8a', '#fff'],
+    ['max', /\bhbo\b|\bmax\b/i, 'max', '#5b21d6', '#fff'],
+    ['apple', /apple/i, 'tv+', '#111114', '#fff'],
+    ['peacock', /peacock/i, 'peacock', '#101010', '#fff'],
+    ['canal', /canal/i, 'CANAL+', '#0d0d0d', '#fff'],
+    ['paramount', /paramount/i, 'Paramount+', '#0a5cff', '#fff'],
+    ['skyshowtime', /sky\s*show/i, 'SkyShowtime', '#1a1a5a', '#fff'],
+    ['viaplay', /viaplay/i, 'viaplay', '#ff2d6f', '#fff'],
+    ['hulu', /hulu/i, 'hulu', '#1ce783', '#06140c'],
+    ['npo', /\bnpo\b/i, 'NPO', '#ff6a00', '#fff'],
+    ['rtl', /\brtl\b/i, 'RTL', '#d5001c', '#fff'],
+    ['discovery', /discovery/i, 'discovery+', '#1664ff', '#fff'],
+    ['dazn', /dazn/i, 'DAZN', '#f0f0f0', '#111'],
+    ['ziggo', /ziggo/i, 'Ziggo', '#f58220', '#fff'],
+    ['kpn', /\bkpn\b/i, 'KPN', '#00b140', '#fff']
+  ];
+
+  function sqTile(name, word, count, sub, bg, fg, onclick, logoId) {
+    const kids = [];
+    if (logoId) kids.push(h('img', { class: 'sqimg', src: 'img/streaming/' + logoId + '.png', alt: '', onerror: function () { this.remove(); } }));
+    kids.push(h('span', { class: 'sqw', text: word }));
+    const b = h('button', { class: 'sq', type: 'button', onclick: onclick }, [h('div', { class: 'sqa', style: { background: bg, color: fg } }, kids), h('div', { class: 'sql', text: name })]);
+    b._info = { title: name, sub: sub || '', desc: '', logo: '', photo: '', backdrop: '', kind: 'live', tag: '', key: name, hint: 'OK = openen', name: name };
+    return b;
+  }
+
+  function streamTiles(goTo) {
+    const out = [];
+    const seen = {};
+    [['vod', 'Films'], ['series', 'Series']].forEach(function (k) {
+      groupsOf(vis(k[0])).forEach(function (g) {
+        const def = STREAMS.filter(function (s) { return s[1].test(g); })[0];
+        if (!def) return;
+        const n = vis(k[0]).filter(function (x) { return x.group === g; }).length;
+        const id = def[0] + '|' + k[0] + '|' + g;
+        if (seen[id]) return;
+        seen[id] = 1;
+        out.push({ def: def, kind: k[0], g: g, n: n });
+      });
+    });
+    out.sort(function (x, y) { return STREAMS.indexOf(x.def) - STREAMS.indexOf(y.def); });
+    return out.slice(0, 20).map(function (o) {
+      const both = out.filter(function (z) { return z.def === o.def; }).length > 1;
+      const label = both ? o.def[2] + (o.kind === 'vod' ? ' films' : ' series') : o.g;
+      return sqTile(o.g, o.def[2], o.n, (o.kind === 'vod' ? 'Films' : 'Series') + ' · ' + o.n + ' titels', o.def[3], o.def[4], goTo(o.kind, o.g), o.def[0]);
+    });
+  }
+
   function vHome() {
     const root = h('div');
     if (!state.lib) {
@@ -1258,10 +1313,13 @@
       setHero({ title: 'Welkom bij Luma TV', sub: 'Live tv, films en series uit je eigen abonnement.', desc: 'Voeg je eigen IPTV-gegevens toe, ook makkelijk met je telefoon. Er wordt geen content meegeleverd.', tag: 'LUMA TV', key: 'luma' });
       return root;
     }
-    root.appendChild(heroBlock());
-    if (state.update) root.appendChild(h('div', { class: 'upd' }, [btn('⬆ Update ' + state.update + ' beschikbaar: nu installeren', function () { state.setTab = 'updates'; go('settings'); }, 'btn sec')]));
+    const wrap = h('div', { class: 'hmw' });
+    wrap.appendChild(heroBlock());
+    const rowsEl = h('div', { class: 'rows' });
+    wrap.appendChild(rowsEl);
+    if (state.update) rowsEl.appendChild(h('div', { class: 'upd' }, [btn('⬆ Update ' + state.update + ' beschikbaar: nu installeren', function () { state.setTab = 'updates'; go('settings'); }, 'btn sec')]));
     const sb = sportBanner();
-    if (sb) root.appendChild(sb);
+    if (sb) rowsEl.appendChild(sb);
     const first = [];
     const live = vis('live');
     const rows = [];
@@ -1289,19 +1347,19 @@
       add('mymatches', 'Jouw wedstrijden', sl.filter(isMine).slice(0, 10).map(function (e) { return matchCard(e, 'h'); }), goTo('sport'));
       add('sportlive', 'Sport live', sl.filter(function (e) { return e.p.start <= now0; }).slice(0, 10).map(function (e) { return matchCard(e, 'hl'); }), goTo('sport'));
     }
-    const grp = groupsOf(live).slice(0, 12);
-    if (grp.length > 1) {
-      const tiles = [['__vod', 'Films'], ['__series', 'Series']].concat(grp.map(function (g) { return [g, g]; })).map(function (g) {
-        const first2 = g[0].indexOf('__') === 0 ? null : live.filter(function (c) { return c.group === g[0]; })[0];
-        const b = h('button', { class: 'rnd', type: 'button', onclick: function () {
-          if (g[0] === '__vod') return goTo('vod', '')();
-          if (g[0] === '__series') return goTo('series', '')();
-          goTo('live', g[0])();
-        } }, [h('div', { class: 'rc', style: { backgroundImage: first2 && first2.logo ? art(first2.logo) + ',' + tint(g[1]) : tint(g[1]) } }, first2 && first2.logo ? [] : [h('span', { text: g[1].trim().slice(0, 2).toUpperCase() })]), h('div', { class: 'rl', text: g[1] })]);
-        b._info = { title: g[1], sub: '', desc: '', logo: '', photo: '', backdrop: '', kind: 'live', tag: 'GROEP', key: g[1], hint: 'OK = openen', name: g[1] };
-        return b;
-      });
-      add('groups', 'Groepen', tiles);
+    {
+      const svc = streamTiles(goTo);
+      if (svc.length) add('groups', 'Streaming', svc);
+      else {
+        const grp = groupsOf(live).slice(0, 12);
+        if (grp.length > 1) add('groups', 'Groepen', [['__vod', 'Films'], ['__series', 'Series']].concat(grp.map(function (g) { return [g, g]; })).map(function (g) {
+          return sqTile(g[1], g[1].trim().slice(0, 14), '', '', '#2a2f3a', '#fff', function () {
+            if (g[0] === '__vod') return goTo('vod', '')();
+            if (g[0] === '__series') return goTo('series', '')();
+            goTo('live', g[0])();
+          });
+        }));
+      }
     }
 
     const cont = store.continueList(12);
@@ -1353,7 +1411,7 @@
     }));
     if (store.profiles().length > 1) add('both', 'Omdat jullie dit samen keken', lookupItems(store.overlap().map(function (id) { return { id: id }; })).slice(0, 16).map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
     if (state.lib && store.ui('row_status', 'on') !== 'off') {
-      root.insertBefore(h('div', { class: 'srcst', text: (state.error ? '● Bron reageert niet' : '● Bron in orde') + (state.loadedAt ? ' · bijgewerkt ' + U.clock(state.loadedAt) : '') + (state.loadMs ? ' · geladen in ' + Math.round(state.loadMs / 100) / 10 + ' s' : '') , style: { color: state.error ? '#ff453a' : '#30d158' } }), root.firstChild.nextSibling);
+      rowsEl.insertBefore(h('div', { class: 'srcst', text: (state.error ? '● Bron reageert niet' : '● Bron in orde') + (state.loadedAt ? ' · bijgewerkt ' + U.clock(state.loadedAt) : '') + (state.loadMs ? ' · geladen in ' + Math.round(state.loadMs / 100) / 10 + ' s' : '') , style: { color: state.error ? '#ff453a' : '#30d158' } }), rowsEl.firstChild);
     }
     add('good', 'Nu iets goeds op tv', goodNow().map(function (g) { return card({ kind: 'live', wide: true, title: g.p.title, logo: g.c.logo, tag: '★ ' + g.rating, sub: g.c.name, onclick: function () { const l = vis('live'); play(l, l.indexOf(g.c)); } }); }));
     add('tvfilms', 'Aankomende films op tv', upcomingFilms().map(function (g) { return card({ kind: 'live', wide: true, title: g.p.title, logo: g.c.logo, tag: 'FILM', sub: g.c.name + ' · ' + new Date(g.p.start).toLocaleString('nl-NL', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), onclick: function () { progMenu(g.c, g.p, g.p.start <= Date.now()); } }); }));
@@ -1398,8 +1456,10 @@
     }
     const order = store.ui('rowsorder', '').split(',').filter(Boolean);
     rows.sort(function (p, q) { const i = order.indexOf(p.key), j = order.indexOf(q.key); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
-    rows.forEach(function (r) { first.push(r.cards[0]); root.appendChild(shelf(r.title, r.cards, r.more)); });
-    if (!first.length) root.appendChild(h('div', { class: 'msg', text: 'Er is niets om te tonen voor dit profiel. Controleer Instellingen → Voor jou.' }));
+    rows.forEach(function (r) { first.push(r.cards[0]); rowsEl.appendChild(shelf(r.title, r.cards, r.more)); });
+    if (!first.length) rowsEl.appendChild(h('div', { class: 'msg', text: 'Er is niets om te tonen voor dit profiel. Controleer Instellingen → Voor jou.' }));
+    rowsEl.appendChild(h('div', { class: 'rowsend' }));
+    root.appendChild(wrap);
     if (first[0]) heroFor(first[0]._info);
     return root;
   }
@@ -3342,6 +3402,8 @@
     const prev = keepFocus ? document.activeElement : null;
     const prevKey = prev && prev.dataset ? prev.dataset.k : '';
     const keepScroll = keepFocus ? viewEl.scrollTop : 0;
+    const oldRows = keepFocus ? document.querySelector('.rows') : null;
+    const keepRows = oldRows ? oldRows.scrollTop : 0;
     const oldG = keepFocus ? document.querySelector('.gscroll') : null;
     const gx = oldG ? oldG.scrollLeft : 0;
     const gy = oldG ? oldG.scrollTop : 0;
@@ -3368,12 +3430,15 @@
     viewEl.appendChild(v);
     syncSlides();
     viewEl.scrollTop = keepScroll;
+    viewEl.classList.toggle('nosc', !!v.querySelector('.hmw'));
+    const newRows = document.querySelector('.rows');
+    if (newRows && keepRows) newRows.scrollTop = keepRows;
     const newG = document.querySelector('.gscroll');
     if (newG && oldG) { newG.scrollLeft = gx; newG.scrollTop = gy; }
     Array.prototype.forEach.call(document.querySelectorAll('.lcol'), function (e, i) { if (cols[i]) e.scrollTop = cols[i]; });
     if (document.querySelector('.who') || modalOpen()) return;
     if (prev && prev.id === 'prof') { $('prof').focus({ preventScroll: true }); return; }
-    if (prev) {
+    if (prev && !autoFocus) {
       let same = null;
       if (prevKey) same = document.querySelector('[data-k="' + prevKey.replace(/"/g, '') + '"]');
       else if (prev.tagName === 'BUTTON' && prev.textContent) {
@@ -3384,8 +3449,11 @@
     focusFirst();
   }
 
+  let autoFocus = false;
+  document.addEventListener('keydown', function () { autoFocus = false; }, true);
   function focusFirst() {
-    const t = viewEl.querySelector('.gp.now') || viewEl.querySelector('.lch') || viewEl.querySelector('.split .card') || viewEl.querySelector('.gname') || viewEl.querySelector('button, input');
+    autoFocus = true;
+    const t = viewEl.querySelector('.hmw .rail button') || viewEl.querySelector('.gp.now') || viewEl.querySelector('.lch') || viewEl.querySelector('.split .card') || viewEl.querySelector('.gname') || viewEl.querySelector('button, input');
     const target = t || navEl.querySelector('button');
     target.focus({ preventScroll: true });
     if (target._info) heroFor(target._info);
@@ -3458,6 +3526,24 @@
       return;
     }
     if (el.closest('#top')) { viewEl.scrollTop = 0; return; }
+    const rows = el.closest('.rows');
+    if (rows) {
+      const sh = el.closest('.shelf');
+      const rr = rows.getBoundingClientRect();
+      if (sh) {
+        const want = sh.getBoundingClientRect().top - rr.top + rows.scrollTop;
+        if (Math.abs(rows.scrollTop - want) > 4) rows.scrollTo({ top: want, behavior: 'smooth' });
+        const rail = el.closest('.rail');
+        if (rail) {
+          const er = el.getBoundingClientRect(), lr = rail.getBoundingClientRect();
+          if (er.left < lr.left + 20) rail.scrollTo({ left: rail.scrollLeft - (lr.left + 20 - er.left), behavior: 'smooth' });
+          else if (er.right > lr.right - 20) rail.scrollTo({ left: rail.scrollLeft + (er.right - lr.right + 20), behavior: 'smooth' });
+        }
+      } else {
+        rows.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
     el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 

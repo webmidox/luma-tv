@@ -8,6 +8,13 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.38: Voor jou compact + streaming
+
+- Hero compact: titel, regel, 2 regels beschrijving (met ...), OK = kijken.
+- Rijen schuiven onder de vaste hero door; de rij waar je op staat staat steeds bovenaan.
+- Streaming-rij: vierkante tegels voor groepen op de server met Netflix, Videoland, Prime, Disney+, Max, Peacock, Canal+ enz. Eigen logo: zet `img/streaming/<naam>.png` (bv. netflix.png) neer.
+- Slideshow met zwarte verloop onder en boven.
+
 ## 0.37: Bovenbalk en foto's
 
 - Bovenbalk effen zwart over de volle breedte (Ziggo-ontwerp), oranje selectie blijft.

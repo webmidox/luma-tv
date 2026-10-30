@@ -403,9 +403,31 @@ body.calm *{transition:none!important;animation:none!important}
 #slides.on{opacity:1}
 #slides .sl{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.6s ease}
 #slides .sl.show{opacity:1}
-#slides::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,8,12,.6) 0%,rgba(8,8,12,.25) 40%,rgba(8,8,12,0) 70%)}
+#slides::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#000 0%,rgba(0,0,0,.97) 22%,rgba(0,0,0,.8) 38%,rgba(0,0,0,.35) 52%,rgba(0,0,0,0) 68%),linear-gradient(180deg,#000 8%,rgba(0,0,0,.8) 14%,rgba(0,0,0,.3) 24%,rgba(0,0,0,0) 36%)}
 #slides.dim::after{background:linear-gradient(90deg,rgba(8,8,12,.82) 0%,rgba(8,8,12,.74) 50%,rgba(8,8,12,.8) 100%)}
 
 /* bovenbalk: effen zwart over de hele breedte, zoals het Ziggo-ontwerp; alleen de selectiekleur blijft */
 #top:before { left: -10rem; right: -10rem; top: -3.6rem; bottom: 0; background: #000; opacity: 1 !important; }
 #nav { background: none; padding: 0; border-radius: 0; }
+
+/* ---- Voor jou: compact hero + rijen die eronder doorschuiven ---- */
+#view.nosc { overflow: hidden; padding-bottom: 0; }
+.hmw { height: 100vh; display: flex; flex-direction: column; }
+.hmw .hero { flex: none; height: 47rem; padding-bottom: 2.4rem; max-width: 110rem; }
+.hmw .hero h1 { font-size: 6.4rem; line-height: 1.05; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.hmw .hero .meta { margin-top: 1rem; font-size: 2.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hmw .hero .desc { margin-top: 1rem; font-size: 2.3rem; -webkit-line-clamp: 2; line-height: 1.35; }
+.hmw .hero .hint { margin-top: 1.4rem; font-size: 2.2rem; color: var(--ac); font-weight: 600; }
+.hmw .hero .tag { display: none; }
+.hmw .rows { flex: 1; min-height: 0; overflow: hidden; }
+.hmw .rows .shelf { margin-top: 0; }
+.rowsend { height: 60vh; }
+.sq { flex: none; width: 24rem; background: none; border: 0; color: var(--tx); display: flex; flex-direction: column; gap: 1.2rem; transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+.sq .sqa { position: relative; width: 24rem; height: 24rem; border-radius: 1.8rem; display: grid; place-items: center; overflow: hidden; border: .5rem solid transparent; box-shadow: 0 1rem 2.4rem rgba(0,0,0,.35); }
+.sq .sqw { font-size: 3.6rem; font-weight: 800; letter-spacing: -.02em; text-align: center; padding: 0 1.4rem; line-height: 1.05; }
+.sq .sqimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 3rem; box-sizing: border-box; background: inherit; }
+.sq .sql { font-size: 2.2rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
+.sq:focus { transform: translateY(-.5rem) scale(1.06); }
+.sq:focus .sqa { border-color: var(--tx); box-shadow: 0 2rem 4.6rem rgba(0,0,0,.55); }
+.sq:focus .sql { color: var(--ac); }
+.hmw .rail { padding-left: 2.6rem; margin-left: -2.6rem; }
