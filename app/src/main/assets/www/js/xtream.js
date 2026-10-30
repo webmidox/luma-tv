@@ -34,6 +34,14 @@
     return base(src) + '/series/' + creds(src) + '/' + id + '.' + (ext || 'mp4');
   }
 
+  /** Catch-up (provider archive): the broadcast that started at startMs and lasts durMin minutes. */
+  function catchupUrl(src, id, startMs, durMin) {
+    const d = new Date(startMs);
+    const p = function (n) { return String(n).padStart(2, '0'); };
+    const stamp = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ':' + p(d.getHours()) + '-' + p(d.getMinutes());
+    return base(src) + '/timeshift/' + creds(src) + '/' + durMin + '/' + stamp + '/' + id + '.ts';
+  }
+
   function epgUrl(src) {
     return base(src) + '/xmltv.php?username=' + enc(src.user || '') + '&password=' + enc(src.pass || '');
   }
@@ -60,7 +68,9 @@
         url: liveUrl(src, s.stream_id),
         logo: s.stream_icon || '',
         group: cm[String(s.category_id)] || 'Overig',
-        tvgId: s.epg_channel_id || ''
+        tvgId: s.epg_channel_id || '',
+        sid: s.stream_id,
+        archive: +s.tv_archive ? (+s.tv_archive_duration || 3) : 0
       };
     });
   }
@@ -109,6 +119,8 @@
           s: season,
           e: num,
           title: String(ep.title || '').trim() || 'Aflevering ' + num,
+          desc: String((ep.info && ep.info.plot) || '').trim(),
+          dur: String((ep.info && ep.info.duration) || '').trim(),
           url: episodeUrl(src, ep.id, ep.container_extension)
         });
       });
@@ -118,7 +130,7 @@
   }
 
   const api = {
-    base: base, apiUrl: apiUrl, liveUrl: liveUrl, movieUrl: movieUrl, episodeUrl: episodeUrl, epgUrl: epgUrl,
+    catchupUrl: catchupUrl, base: base, apiUrl: apiUrl, liveUrl: liveUrl, movieUrl: movieUrl, episodeUrl: episodeUrl, epgUrl: epgUrl,
     normalizeLive: normalizeLive, normalizeVod: normalizeVod, normalizeSeriesList: normalizeSeriesList,
     normalizeSeriesInfo: normalizeSeriesInfo
   };

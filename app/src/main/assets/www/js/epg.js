@@ -15,6 +15,7 @@
   class Epg {
     constructor(data, liveItems) {
       this.map = new Map();
+      this.icons = new Map();
       const byName = new Map();
       const byLowerId = new Map();
       Object.keys(data.channels).forEach(function (id) {
@@ -30,12 +31,14 @@
       for (let i = 0; i < liveItems.length; i++) {
         const it = liveItems[i];
         let id = null;
-        if (it.tvgId) id = byLowerId.get(it.tvgId.toLowerCase()) || null;
+        if (it.epgId) id = byLowerId.get(String(it.epgId).toLowerCase()) || null;
+        if (!id && it.tvgId) id = byLowerId.get(it.tvgId.toLowerCase()) || null;
         if (!id || !data.programmes[id]) {
           const k = normName(it.name);
           id = k && byName.has(k) ? byName.get(k) : null;
         }
         if (id && data.programmes[id]) this.map.set(it.id, data.programmes[id]);
+        if (id && data.channels[id] && data.channels[id].icon) this.icons.set(it.id, data.channels[id].icon);
       }
     }
 

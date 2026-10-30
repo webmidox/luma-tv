@@ -6,13 +6,17 @@
 <title>Luma TV</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="dark">
+<div id="bdfill"></div>
+<div id="backdrop"></div>
+<div id="shade"></div>
 <header id="top">
-  <div class="brand"><span class="dot"></span>Luma TV</div>
   <nav id="nav"></nav>
-  <div id="clock"></div>
+  <div id="right"><span id="clock"></span><button id="prof" class="av" type="button"></button></div>
 </header>
 <main id="view"></main>
+<div id="intro"><div class="ib"><div class="logo"><i></i><i></i><i></i></div><div class="word">Luma<span>TV</span></div><div class="tagl">Jouw televisie, jouw bron</div><div class="prog"><b></b></div><div id="intro-status">Starten…</div></div></div>
+<div id="modal" hidden></div>
 <div id="toast" hidden></div>
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
@@ -21,6 +25,8 @@
 <script src="js/epg.js"></script>
 <script src="js/xtream.js"></script>
 <script src="js/store.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/meta.js"></script>
 <script src="js/update.js"></script>
 <script src="js/app.js"></script>
 </body>

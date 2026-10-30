@@ -35,7 +35,7 @@
 
   /**
    * Reads an XMLTV guide. Only programmes that overlap [from, to] are kept, which keeps a 50 MB guide small.
-   * Returns {channels: {id: {names, icon}}, programmes: {id: [{start, stop, title, desc}]}} (sorted by start).
+   * Returns {channels: {id: {names, icon}}, programmes: {id: [{start, stop, title, desc, cat, img}]}} (sorted by start).
    */
   function parseXmltv(text, from, to) {
     const channels = {};
@@ -64,7 +64,12 @@
       if (to != null && start >= to) continue;
       const t = /<title[^>]*>([\s\S]*?)<\/title>/.exec(m[2]);
       const d = /<desc[^>]*>([\s\S]*?)<\/desc>/.exec(m[2]);
-      (programmes[ch] || (programmes[ch] = [])).push({ start: start, stop: stop, title: t ? decode(t[1]) : '', desc: d ? decode(d[1]) : '' });
+      const c = /<category[^>]*>([\s\S]*?)<\/category>/.exec(m[2]);
+      const ic = /<icon\s+[^>]*src="([^"]*)"/.exec(m[2]);
+      (programmes[ch] || (programmes[ch] = [])).push({
+        start: start, stop: stop, title: t ? decode(t[1]) : '', desc: d ? decode(d[1]) : '',
+        cat: c ? decode(c[1]) : '', img: ic ? decode(ic[1]) : ''
+      });
     }
     Object.keys(programmes).forEach(function (k) {
       programmes[k].sort(function (a, b) { return a.start - b.start; });

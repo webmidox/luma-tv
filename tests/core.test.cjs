@@ -115,3 +115,98 @@ test('pick newest release with apk', () => {
   assert.ok(UP.isNewer('v3.3', '3.2'));
   assert.strictEqual(UP.pickRelease([]), null);
 });
+
+test('store: profiles keep their own data; old data becomes the first profile', () => {
+  const mem = { 'luma.v1': JSON.stringify({ sources: [], progress: { a: { id: 'a', kind: 'vod', pos: 60000, dur: 100000, ts: 1 } }, recent: ['x'], prefs: { repo: 'a/b' } }) };
+  const st = { getItem: k => mem[k] || null, setItem: (k, v) => { mem[k] = v; } };
+  const s = createStore(st);
+  assert.strictEqual(s.profiles().length, 1);
+  assert.deepStrictEqual(s.continueList().map(p => p.id), ['a']);
+  assert.strictEqual(s.pref('repo'), 'a/b');
+  const kid = s.addProfile({ name: 'Kids', kid: true });
+  s.switchProfile(kid.id);
+  assert.strictEqual(s.continueList().length, 0);
+  assert.strictEqual(s.toggleFav('c1'), true);
+  s.setUi('theme', 'light');
+  s.toggleHidden('Adult');
+  assert.ok(s.isHidden('Adult'));
+  s.switchProfile(s.profiles()[0].id);
+  assert.strictEqual(s.isFav('c1'), false);
+  assert.strictEqual(s.ui('theme', 'dark'), 'dark');
+  assert.strictEqual(createStore(st).profiles().length, 2);
+  assert.strictEqual(s.removeProfile(kid.id), true);
+  assert.strictEqual(s.removeProfile(s.profiles()[0].id), false);
+});
+
+test('store: reminders fire once, favourites toggle', () => {
+  const s = createStore({ getItem: () => null, setItem() {} });
+  const now = 1000000000000;
+  assert.strictEqual(s.toggleReminder({ chId: 'c', chName: 'C', title: 'T', start: now + 30000 }), true);
+  assert.strictEqual(s.toggleReminder({ chId: 'c', chName: 'C', title: 'Later', start: now + 3600000 }), true);
+  assert.strictEqual(s.dueReminders(now, 60000).length, 1);
+  assert.strictEqual(s.dueReminders(now, 60000).length, 0);
+  assert.strictEqual(s.hasReminder('c', now + 3600000), true);
+  assert.strictEqual(s.toggleReminder({ chId: 'c', start: now + 3600000 }), false);
+  s.resetProfile();
+  assert.strictEqual(s.reminders().length, 0);
+});
+
+test('theme helpers', () => {
+  const T = require('../' + w + 'theme.js');
+  assert.strictEqual(T.normHex('F50'), '#ff5500');
+  assert.strictEqual(T.normHex('#ff8a1f'), '#ff8a1f');
+  assert.strictEqual(T.normHex('rood'), null);
+  assert.strictEqual(T.onColor('#ffd23f'), '#14110a');
+  assert.strictEqual(T.onColor('#2a2fff'), '#ffffff');
+  assert.strictEqual(T.resolveMode('auto', new Date(2026, 0, 1, 12)), 'light');
+  assert.strictEqual(T.resolveMode('auto', new Date(2026, 0, 1, 22)), 'dark');
+  assert.strictEqual(T.resolveMode('black'), 'black');
+});
+
+test('meta: title cleaning, lookup and cache', async () => {
+  const Meta = require('../' + w + 'meta.js');
+  assert.deepStrictEqual(Meta.cleanTitle('NL: De Film (2020) 4K HD'), { title: 'De Film', year: 2020 });
+  assert.deepStrictEqual(Meta.cleanTitle('Show Naam S01E02'), { title: 'Show Naam', year: 0 });
+  assert.strictEqual(await Meta.lookup('vod', 'x', '', 'nl-NL', async () => ({})), null);
+  let seen = '';
+  const r = await Meta.lookup('vod', 'De Film (2020)', 'KEY', 'nl-NL', async (u) => {
+    seen = u;
+    return { results: [{ title: 'zonder', overview: 'a' }, { backdrop_path: '/b.jpg', poster_path: '/p.jpg', vote_average: 7.46, release_date: '2020-05-01', overview: 'Uitleg' }] };
+  });
+  assert.ok(seen.includes('search/movie') && seen.includes('year=2020') && seen.includes('api_key=KEY'));
+  assert.strictEqual(r.backdrop, 'https://image.tmdb.org/t/p/w1280/b.jpg');
+  assert.strictEqual(r.rating, 7.5);
+  assert.strictEqual(r.year, 2020);
+  const mem = {};
+  const c = Meta.createCache({ getItem: k => mem[k] || null, setItem: (k, v) => { mem[k] = v; } }, 'm', 2);
+  c.set('a', 1); c.set('b', 2); c.set('c', 3);
+  assert.strictEqual(c.get('a'), undefined);
+  assert.strictEqual(c.get('c'), 3);
+});
+
+test('store: my list, watched, stats, channel overrides, searches', () => {
+  const s = createStore({ getItem: () => null, setItem() {} });
+  assert.strictEqual(s.toggleList({ id: 'm1', kind: 'vod', name: 'A' }), true);
+  assert.ok(s.inList('m1'));
+  assert.strictEqual(s.toggleList({ id: 'm1' }), false);
+  assert.strictEqual(s.toggleWatched('m1'), true);
+  s.addWatch(60000, 'NPO 1', '2026-10-29');
+  s.addWatch(120000, 'Film', '2026-10-29');
+  s.addWatch(30000, 'NPO 1', '2026-10-30');
+  const st = s.statsFor(2, '2026-10-30T12:00:00Z');
+  assert.strictEqual(st.total, 210000);
+  assert.deepStrictEqual(st.top[0], ['Film', 120000]);
+  s.setChan('c1', { hide: true, num: 7 });
+  assert.deepStrictEqual(s.hiddenChannels(), ['c1']);
+  s.setChan('c1', { hide: false });
+  assert.deepStrictEqual(s.chan('c1'), { num: 7 });
+  s.addSearch('rtl'); s.addSearch('npo'); s.addSearch('rtl');
+  assert.deepStrictEqual(s.searches(), ['rtl', 'npo']);
+  assert.strictEqual(s.toggleZap('c1'), true);
+});
+
+test('xmltv keeps category and picture', () => {
+  const d = XMLTV.parseXmltv('<tv><programme start="20261029183000 +0000" stop="20261029193000 +0000" channel="a"><title>T</title><category lang="nl">Film</category><icon src="http://i/x.jpg"/></programme></tv>', null, null);
+  assert.strictEqual(d.programmes.a[0].cat, 'Film');
+  assert.strictEqual(d.programmes.a[0].img, 'http://i/x.jpg');
+});

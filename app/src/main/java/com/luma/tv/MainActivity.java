@@ -65,11 +65,21 @@ public class MainActivity extends Activity {
         try {
             JSONObject check = new JSONObject(json);
             Intent i = new Intent(this, PlayerActivity.class);
-            i.putExtra(PlayerActivity.EXTRA_PAYLOAD, check.toString());
+            PlayerActivity.pending = check.toString(); // too big for an Intent (TransactionTooLargeException)
             startActivityForResult(i, REQ_PLAY);
         } catch (Exception e) {
             Log.w(TAG, "Bad player request", e);
         }
+    }
+
+    /** Runs a line of script in the page; safe to call from any thread. */
+    void js(String code) {
+        runOnUiThread(() -> web.evaluateJavascript(code, null));
+    }
+
+    /** A source typed on the phone arrived; hand it to the interface. */
+    void remoteSource(String json) {
+        runOnUiThread(() -> web.evaluateJavascript("window.lumaRemoteAdd && window.lumaRemoteAdd(" + json + ")", null));
     }
 
     /** Progress text for the update screen; safe to call from any thread. */
@@ -95,6 +105,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        RemoteSetup.stop();
         if (web != null) {
             web.removeJavascriptInterface("LumaNative");
             web.destroy();

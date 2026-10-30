@@ -10,8 +10,8 @@ android {
         applicationId 'com.luma.tv'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '0.1'
+        versionCode 18
+        versionName '0.17'
     }
 
     buildTypes {
@@ -36,8 +36,10 @@ android {
 dependencies {
     // Serves the web interface from assets over https, so fetch() and storage behave like a normal site.
     implementation 'androidx.core:core:1.13.1'
+    implementation 'com.google.zxing:core:3.5.3'
     implementation 'androidx.webkit:webkit:1.11.0'
     // The native player: HLS and plain MPEG-TS streams, which is what IPTV providers send.
     implementation 'androidx.media3:media3-exoplayer:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
 }
