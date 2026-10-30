@@ -8,6 +8,11 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.44: Streamingdiensten
+
+- Rij Streaming op Voor jou: een vierkante tegel per dienst die in de groepen van je server staat. Logo's staan in `img/streaming/<id>.png` (512x512); nieuwe dienst = bestand erbij en een regel in STREAMS (app.js).
+- OK op een dienst opent Films of Series met alleen de categorieën van die dienst.
+
 ## 0.43: Profielkeuze en startscherm
 
 - Profielkeuze verschijnt na het laadscherm, ook met een profiel (Instellingen > Profielen: 'Vraag bij het opstarten wie er kijkt').

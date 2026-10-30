@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.44', ['Streaming-rij terug op Voor jou met logo\'s (Netflix, Prime, Disney+, Videoland, Peacock, SkyShowtime, Joyn)', 'Kies je een dienst, dan zie je alleen de categorieën van die dienst links en de films of series rechts']],
     ['0.43', ['Profielkeuze komt altijd na het laadscherm (uit te zetten in Instellingen)', 'Live en straks en Sport live staan meteen goed, ook als er een melding open stond']],
     ['0.42', ['Nieuw laadscherm met foto en zwart verloop: wacht tot zenders, gids en sport klaar zijn', 'Daarna pas de profielkeuze, en Voor jou is meteen compleet']],
     ['0.41', ['Momentopname van wat er nu op tv is in de live-kaarten, ipv het logo (een voor een op de achtergrond, 10 minuten bewaard)']],
@@ -1276,56 +1277,54 @@
   }
 
   // ---------- streaming services (from the groups on the server) ----------
+  // id (also the logo file in img/streaming), pattern for the group name, name, tile colour, text colour
   const STREAMS = [
-    ['netflix', /netflix/i, 'NETFLIX', '#e50914', '#fff'],
-    ['videoland', /videoland/i, 'videoland', '#e3003a', '#fff'],
-    ['prime', /prime|amazon/i, 'prime video', '#00a8e1', '#fff'],
-    ['disney', /disney/i, 'Disney+', '#0b2a8a', '#fff'],
-    ['max', /\bhbo\b|\bmax\b/i, 'max', '#5b21d6', '#fff'],
-    ['apple', /apple/i, 'tv+', '#111114', '#fff'],
-    ['peacock', /peacock/i, 'peacock', '#101010', '#fff'],
-    ['canal', /canal/i, 'CANAL+', '#0d0d0d', '#fff'],
+    ['netflix', /netflix/i, 'Netflix', '#000000', '#e50914'],
+    ['prime', /prime|amazon/i, 'Prime Video', '#0a7bff', '#fff'],
+    ['disney', /disney/i, 'Disney+', '#000000', '#fff'],
+    ['videoland', /videoland/i, 'Videoland', '#ff3849', '#fff'],
+    ['peacock', /peacock/i, 'Peacock', '#111114', '#fff'],
+    ['skyshowtime', /sky\s*show/i, 'SkyShowtime', '#14102a', '#fff'],
+    ['joyn', /joyn/i, 'Joyn', '#000000', '#fff'],
+    ['max', /\bhbo\b|\bmax\b/i, 'Max', '#5b21d6', '#fff'],
+    ['apple', /apple/i, 'Apple TV+', '#111114', '#fff'],
+    ['canal', /canal/i, 'Canal+', '#0d0d0d', '#fff'],
     ['paramount', /paramount/i, 'Paramount+', '#0a5cff', '#fff'],
-    ['skyshowtime', /sky\s*show/i, 'SkyShowtime', '#1a1a5a', '#fff'],
-    ['viaplay', /viaplay/i, 'viaplay', '#ff2d6f', '#fff'],
-    ['hulu', /hulu/i, 'hulu', '#1ce783', '#06140c'],
+    ['viaplay', /viaplay/i, 'Viaplay', '#ff2d6f', '#fff'],
+    ['hulu', /hulu/i, 'Hulu', '#1ce783', '#06140c'],
     ['npo', /\bnpo\b/i, 'NPO', '#ff6a00', '#fff'],
     ['rtl', /\brtl\b/i, 'RTL', '#d5001c', '#fff'],
     ['discovery', /discovery/i, 'discovery+', '#1664ff', '#fff'],
-    ['dazn', /dazn/i, 'DAZN', '#f0f0f0', '#111'],
-    ['ziggo', /ziggo/i, 'Ziggo', '#f58220', '#fff'],
-    ['kpn', /\bkpn\b/i, 'KPN', '#00b140', '#fff']
+    ['dazn', /dazn/i, 'DAZN', '#f0f0f0', '#111']
   ];
 
-  function sqTile(name, word, count, sub, bg, fg, onclick, logoId) {
-    const kids = [];
+  function sqTile(name, word, sub, bg, fg, onclick, logoId) {
+    const kids = [h('span', { class: 'sqw', text: word })];
     if (logoId) kids.push(h('img', { class: 'sqimg', src: 'img/streaming/' + logoId + '.png', alt: '', onerror: function () { this.remove(); } }));
-    kids.push(h('span', { class: 'sqw', text: word }));
     const b = h('button', { class: 'sq', type: 'button', onclick: onclick }, [h('div', { class: 'sqa', style: { background: bg, color: fg } }, kids), h('div', { class: 'sql', text: name })]);
     b._info = { title: name, sub: sub || '', desc: '', logo: '', photo: '', backdrop: '', kind: 'live', tag: '', key: name, hint: 'OK = openen', name: name };
     return b;
   }
 
-  function streamTiles(goTo) {
+  /** One tile per streaming service found in the film and series groups on the server. */
+  function streamTiles() {
     const out = [];
-    const seen = {};
-    [['vod', 'Films'], ['series', 'Series']].forEach(function (k) {
-      groupsOf(vis(k[0])).forEach(function (g) {
-        const def = STREAMS.filter(function (s) { return s[1].test(g); })[0];
-        if (!def) return;
-        const n = vis(k[0]).filter(function (x) { return x.group === g; }).length;
-        const id = def[0] + '|' + k[0] + '|' + g;
-        if (seen[id]) return;
-        seen[id] = 1;
-        out.push({ def: def, kind: k[0], g: g, n: n });
-      });
+    STREAMS.forEach(function (def) {
+      const n = { vod: 0, series: 0 };
+      ['vod', 'series'].forEach(function (k) { vis(k).forEach(function (x) { if (def[1].test(x.group || '')) n[k]++; }); });
+      if (!n.vod && !n.series) return;
+      const bits = [];
+      if (n.vod) bits.push(n.vod + ' films');
+      if (n.series) bits.push(n.series + ' series');
+      out.push(sqTile(def[2], def[2], bits.join(' · '), def[3], def[4], function () {
+        state.provNext = def;
+        state.group.vod = '';
+        state.group.series = '';
+        state.shown = {};
+        go(n.vod ? 'vod' : 'series');
+      }, def[0]));
     });
-    out.sort(function (x, y) { return STREAMS.indexOf(x.def) - STREAMS.indexOf(y.def); });
-    return out.slice(0, 20).map(function (o) {
-      const both = out.filter(function (z) { return z.def === o.def; }).length > 1;
-      const label = both ? o.def[2] + (o.kind === 'vod' ? ' films' : ' series') : o.g;
-      return sqTile(o.g, o.def[2], o.n, (o.kind === 'vod' ? 'Films' : 'Series') + ' · ' + o.n + ' titels', o.def[3], o.def[4], goTo(o.kind, o.g), o.def[0]);
-    });
+    return out;
   }
 
   function vHome() {
@@ -1370,12 +1369,12 @@
       add('sportlive', 'Sport live', sl.filter(function (e) { return e.p.start <= now0; }).slice(0, 10).map(function (e) { return matchCard(e, 'hl'); }), goTo('sport'));
     }
     {
-      const svc = [];
+      const svc = streamTiles();
       if (svc.length) add('groups', 'Streaming', svc);
       else {
         const grp = groupsOf(live).slice(0, 12);
         if (grp.length > 1) add('groups', 'Groepen', [['__vod', 'Films'], ['__series', 'Series']].concat(grp.map(function (g) { return [g, g]; })).map(function (g) {
-          return sqTile(g[1], g[1].trim().slice(0, 14), '', '', '#2a2f3a', '#fff', function () {
+          return sqTile(g[1], g[1].trim().slice(0, 14), '', '#2a2f3a', '#fff', function () {
             if (g[0] === '__vod') return goTo('vod', '')();
             if (g[0] === '__series') return goTo('series', '')();
             goTo('live', g[0])();
@@ -2211,7 +2210,8 @@
 
   function vShelf(kind, label, title) {
     if (!state.lib) return vHome();
-    const all = vis(kind);
+    const all = state.prov ? vis(kind).filter(function (c) { return state.prov[1].test(c.group || ''); }) : vis(kind);
+    if (state.prov) title = state.prov[2] + ' · ' + title;
     const g = state.group[kind];
     let list = all;
     if (g === '__list') list = all.filter(function (c) { return store.inList(c.id); });
@@ -3501,6 +3501,7 @@
       state.view = view;
       state.show = null;
       state.sub = null;
+      if (state.provNext) { state.prov = state.provNext; state.provNext = null; } else if (view !== 'vod' && view !== 'series') state.prov = null;
       render();
     }
   }
