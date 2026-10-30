@@ -8,6 +8,10 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.41: Momentopnamen
+
+- Live-kaarten op Voor jou tonen een stilstaand beeld van de zender (een tegelijk op de achtergrond, 10 min bewaard). Uitzetten: Instellingen > Uiterlijk > Momentopname in kaarten.
+
 ## 0.40: Live beeld in kaarten
 
 - Op Voor jou speelt de geselecteerde live-kaart na 1,5 s gedempt het live beeld (een tegelijk, max 720p). Uitzetten: Instellingen > Uiterlijk > Live beeld in kaarten.

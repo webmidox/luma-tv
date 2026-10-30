@@ -11,7 +11,10 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.graphics.Bitmap;
 import android.graphics.Outline;
+import android.util.Base64;
+import java.io.ByteArrayOutputStream;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewOutlineProvider;
@@ -40,6 +43,11 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private ExoPlayer pv;
     private TextureView pvView;
+    private ExoPlayer sp;
+    private TextureView sv;
+    private String snapId = "";
+    private Runnable snapTimeout;
+    private final android.os.Handler ui = new android.os.Handler(android.os.Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +104,7 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> {
             try {
                 previewStop();
+                if (!snapId.isEmpty()) snapDone(snapId, null);
                 if (url == null || url.isEmpty() || w < 40 || h < 40) return;
                 DefaultHttpDataSource.Factory data = new DefaultHttpDataSource.Factory()
                         .setUserAgent(ua == null || ua.trim().isEmpty() ? "LumaTV/0.1" : ua)
@@ -148,6 +157,101 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** One still picture of a live channel, reported to the page as a data address (or null when it did not work). */
+    void snapStart(final String id, final String url, final String ua) {
+        runOnUiThread(() -> {
+            try {
+                if (!snapId.isEmpty()) snapDone(snapId, null);
+                if (pv != null || id == null || id.isEmpty() || url == null || url.isEmpty()) {
+                    js("window.lumaSnap&&window.lumaSnap(" + JSONObject.quote(id == null ? "" : id) + ",null)");
+                    return;
+                }
+                snapId = id;
+                DefaultHttpDataSource.Factory data = new DefaultHttpDataSource.Factory()
+                        .setUserAgent(ua == null || ua.trim().isEmpty() ? "LumaTV/0.1" : ua)
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(8000)
+                        .setReadTimeoutMs(10000);
+                sp = new ExoPlayer.Builder(this)
+                        .setMediaSourceFactory(new DefaultMediaSourceFactory(new DefaultDataSource.Factory(this, data)))
+                        .build();
+                sp.setVolume(0f);
+                sp.setTrackSelectionParameters(sp.getTrackSelectionParameters().buildUpon()
+                        .setMaxVideoSize(640, 360)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                        .build());
+                final TextureView tv = new TextureView(this);
+                tv.setFocusable(false);
+                tv.setAlpha(0.01f);
+                root.addView(tv, new FrameLayout.LayoutParams(320, 180));
+                sv = tv;
+                sp.setVideoTextureView(tv);
+                sp.addListener(new Player.Listener() {
+                    @Override
+                    public void onRenderedFirstFrame() {
+                        ui.postDelayed(() -> snapGrab(id), 600);
+                    }
+
+                    @Override
+                    public void onPlayerError(PlaybackException error) {
+                        snapDone(id, null);
+                    }
+                });
+                sp.setMediaItem(MediaItem.fromUri(url));
+                sp.prepare();
+                sp.play();
+                snapTimeout = () -> snapDone(id, null);
+                ui.postDelayed(snapTimeout, 12000);
+            } catch (Exception e) {
+                Log.w(TAG, "Snapshot failed", e);
+                snapDone(id, null);
+            }
+        });
+    }
+
+    private void snapGrab(String id) {
+        if (!id.equals(snapId) || sv == null || !sv.isAvailable()) return;
+        String out = null;
+        try {
+            Bitmap b = sv.getBitmap(480, 270);
+            if (b != null) {
+                long sum = 0;
+                int n = 0;
+                for (int y = 0; y < b.getHeight(); y += 9) {
+                    for (int x = 0; x < b.getWidth(); x += 9) {
+                        int c = b.getPixel(x, y);
+                        sum += ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255);
+                        n += 3;
+                    }
+                }
+                if (n > 0 && sum / n > 10) { // skip an all-black frame
+                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                    b.compress(Bitmap.CompressFormat.JPEG, 72, bo);
+                    out = "data:image/jpeg;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP);
+                }
+                b.recycle();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Snapshot grab failed", e);
+        }
+        snapDone(id, out);
+    }
+
+    private void snapDone(String id, String data) {
+        if (snapTimeout != null) { ui.removeCallbacks(snapTimeout); snapTimeout = null; }
+        if (sp != null) {
+            try { sp.release(); } catch (Exception e) { /* already gone */ }
+            sp = null;
+        }
+        if (sv != null) {
+            root.removeView(sv);
+            sv = null;
+        }
+        snapId = "";
+        js("window.lumaSnap&&window.lumaSnap(" + JSONObject.quote(id) + "," + (data == null ? "null" : JSONObject.quote(data)) + ")");
+    }
+
     void previewStop() {
         runOnUiThread(() -> {
             if (pv != null) {
@@ -164,6 +268,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         previewStop();
+        if (!snapId.isEmpty()) snapDone(snapId, null);
         super.onPause();
     }
 

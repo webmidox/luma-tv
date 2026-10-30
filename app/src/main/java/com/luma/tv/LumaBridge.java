@@ -30,6 +30,12 @@ final class LumaBridge {
         activity.previewStart(url, ua, x, y, w, h, radius);
     }
 
+    /** One still picture of a live channel; the answer arrives through window.lumaSnap. */
+    @JavascriptInterface
+    public void snap(String id, String url, String ua) {
+        activity.snapStart(id, url, ua);
+    }
+
     @JavascriptInterface
     public void previewStop() {
         activity.previewStop();

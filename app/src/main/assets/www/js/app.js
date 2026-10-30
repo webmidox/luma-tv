@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.41', ['Momentopname van wat er nu op tv is in de live-kaarten, ipv het logo (een voor een op de achtergrond, 10 minuten bewaard)']],
     ['0.40', ['Live beeld in de geselecteerde live-kaart (gedempt, na 1,5 seconde)', 'Uit te zetten bij Instellingen > Uiterlijk > Live beeld in kaarten']],
     ['0.39', ['Rijen lopen nu door tot de rand van het scherm, op dezelfde plek', 'Omhoog en omlaag springt niet meer een rij over (o.a. Sport live)', 'Streaming-rij voorlopig weg']],
     ['0.38', ['Voor jou compact: titel, regel eronder, twee regels beschrijving en OK = kijken', 'De rijen schuiven onder de vaste bovenkant door', 'Streaming-rij met vierkante tegels (Netflix, Videoland, Prime enz.) uit de groepen op je server', 'Zwartere slideshow onderaan en bovenaan']],
@@ -1021,7 +1022,7 @@
       lp: function () { channelMenu(c); }
     });
     if (!photo && nn.now) liveArt(el, nn.now.title, nn.now.cat, c.logo);
-    if (c.url && !isRadio(c)) el._pv = c.url;
+    if (c.url && !isRadio(c)) { el._pv = c.url; el._cid = c.id; const sn = snapGet(c.id); if (sn) applySnap(el, sn, c); }
     return el;
   }
 
@@ -2673,6 +2674,7 @@
     p.appendChild(toggleRow('Rustige modus', 'Geen animaties en overgangen', store.ui('calm', 'off') === 'on', function () { setUi('calm', store.ui('calm', 'off') === 'on' ? 'off' : 'on'); applyCalm(); }));
     p.appendChild(toggleRow('Seizoensthema', 'Kerst, oud en nieuw en Koningsdag krijgen een eigen accentkleur', store.ui('season', 'off') === 'on', function () { setUi('season', store.ui('season', 'off') === 'on' ? 'off' : 'on'); }));
     p.appendChild(choiceRow('Doorzichtigheid van de bovenbalk', 'Hoe sterk de balk bovenin de rij eronder verbergt', [['1', 'Dicht'], ['0.6', 'Half'], ['0.3', 'Bijna doorzichtig'], ['0', 'Doorzichtig']], store.ui('topalpha', '1'), function (v) { setUi('topalpha', v); }));
+    p.appendChild(toggleRow('Momentopname in kaarten', 'Een stilstaand beeld van wat er nu op tv is, ipv het logo', on('livesnap'), function () { setUi('livesnap', on('livesnap') ? 'off' : 'on'); render(true); }));
     p.appendChild(toggleRow('Live beeld in kaarten', 'Blijf je even op een live-kaart staan, dan speelt het beeld gedempt', on('livepv'), function () { setUi('livepv', on('livepv') ? 'off' : 'on'); previewStop(); }));
     p.appendChild(toggleRow('Foto-slideshow op Voor jou', 'Elke 10 seconden een andere foto', on('homeslides'), function () { setUi('homeslides', on('homeslides') ? 'off' : 'on'); syncSlides(); render(true); }));
     p.appendChild(toggleRow('Foto-slideshow bij Live TV', 'Gedimd, zodat de zenderlijst leesbaar blijft', on('slides_live'), function () { setUi('slides_live', on('slides_live') ? 'off' : 'on'); syncSlides(); render(true); }));
@@ -3434,6 +3436,7 @@
     viewEl.textContent = '';
     viewEl.appendChild(v);
     syncSlides();
+    snapScan();
     viewEl.scrollTop = keepScroll;
     viewEl.classList.toggle('nosc', !!v.querySelector('.hmw'));
     const newRows = document.querySelector('.rows');
@@ -3480,12 +3483,72 @@
     }
   }
 
+  // ---------- stills of what is on ----------
+  const SNAP_TTL = 10 * 60000;
+  const snaps = {};
+  const snapBad = {};
+  let snapBusy = '';
+  let snapTimer = 0;
+  let snapGuard = 0;
+
+  function snapGet(id) { const s = snaps[id]; return s && Date.now() - s.t < SNAP_TTL ? s.u : ''; }
+
+  function applySnap(el, data, c) {
+    const a = el.querySelector('.art');
+    if (!a) return;
+    a.classList.add('photo');
+    a.style.backgroundImage = 'url("' + data + '")';
+    const ini = a.querySelector('.ini');
+    if (ini) ini.remove();
+    if (c && c.logo && !a.querySelector('.chlogo')) a.appendChild(h('div', { class: 'chlogo', style: { backgroundImage: art(c.logo) } }));
+  }
+
+  function snapScan() {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(snapNext, 700);
+  }
+
+  function snapNext() {
+    if (snapBusy || pvOn || modalOpen() || state.view !== 'home' || !native || !native.snap || !on('livesnap')) return;
+    const rows = document.querySelector('.rows');
+    if (!rows) return;
+    const rr = rows.getBoundingClientRect();
+    const f = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.shelf') : null;
+    const now = Date.now();
+    const cands = [];
+    Array.prototype.forEach.call(rows.querySelectorAll('.card.live'), function (el) {
+      if (!el._cid || !el._pv || snapGet(el._cid) || (snapBad[el._cid] && now - snapBad[el._cid] < 120000)) return;
+      const r = el.getBoundingClientRect();
+      if (r.bottom < rr.top || r.top > rr.bottom || r.right < 0 || r.left > window.innerWidth) return;
+      cands.push({ el: el, pri: (el.closest('.shelf') === f ? 0 : 1) * 10000 + Math.abs(r.left) });
+    });
+    if (!cands.length) return;
+    cands.sort(function (x, y) { return x.pri - y.pri; });
+    const el = cands[0].el;
+    snapBusy = el._cid;
+    clearTimeout(snapGuard);
+    snapGuard = setTimeout(function () { if (snapBusy) { snapBad[snapBusy] = Date.now(); snapBusy = ''; snapNext(); } }, 15000);
+    try { native.snap(el._cid, el._pv, (state.source && state.source.ua) || ''); } catch (e) { snapBusy = ''; }
+  }
+
+  window.lumaSnap = function (id, data) {
+    if (id !== snapBusy) return;
+    clearTimeout(snapGuard);
+    snapBusy = '';
+    if (data) {
+      snaps[id] = { t: Date.now(), u: data };
+      Array.prototype.forEach.call(document.querySelectorAll('.card.live'), function (el) { if (el._cid === id) applySnap(el, data, null); });
+    } else snapBad[id] = Date.now();
+    setTimeout(snapNext, 400);
+  };
+
   // Live picture inside the selected card: one at a time, muted, after a short pause.
   let pvTimer = 0;
   let pvOn = false;
   function previewStop() {
     clearTimeout(pvTimer);
     if (pvOn && native && native.previewStop) { try { native.previewStop(); } catch (e) { /* ignore */ } }
+    if (pvOn) snapScan();
     pvOn = false;
   }
   function previewSoon(el) {
@@ -3512,6 +3575,7 @@
   document.addEventListener('focusin', function (e) {
     const t = e.target;
     previewSoon(t);
+    snapScan();
     if (!t) return;
     if (t._ginfo) return guideInfo(t._ginfo);
     if (t._linfo) liveInfo(t._linfo);
