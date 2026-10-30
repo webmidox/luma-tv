@@ -433,3 +433,9 @@ body.calm *{transition:none!important;animation:none!important}
 .hmw .rows { margin: 0 -10rem; padding: 0 10rem; }
 .hmw .rail { margin: 0 -10rem; padding-left: 10rem; padding-right: 10rem; }
 .hmw .shh { padding-right: 0; }
+
+/* ---- laadscherm met foto ---- */
+#intro { background: radial-gradient(70% 55% at 50% 50%, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%), linear-gradient(180deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.2) 30%, rgba(0,0,0,.55) 65%, #000 100%), url(img/loading.jpg) center / cover no-repeat #000; }
+#intro .word { font-size: 7rem; letter-spacing: 0; text-shadow: 0 .4rem 3rem rgba(0,0,0,.7); }
+#intro .prog { background: rgba(255,255,255,.18); }
+#intro-status { color: #d5d2e0; text-shadow: 0 .2rem 1.4rem rgba(0,0,0,.8); }

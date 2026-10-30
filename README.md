@@ -8,6 +8,11 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.42: Laadscherm
+
+- Laadscherm met foto (`img/loading.jpg`) en zwart verloop; blijft staan tot zenders, programmagids en sportlijst klaar zijn (max 45 s).
+- Daarna de profielkeuze (als die aan staat) en Voor jou met alle rijen meteen compleet.
+
 ## 0.41: Momentopnamen
 
 - Live-kaarten op Voor jou tonen een stilstaand beeld van de zender (een tegelijk op de achtergrond, 10 min bewaard). Uitzetten: Instellingen > Uiterlijk > Momentopname in kaarten.

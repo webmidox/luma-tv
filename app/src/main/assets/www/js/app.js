@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.42', ['Nieuw laadscherm met foto en zwart verloop: wacht tot zenders, gids en sport klaar zijn', 'Daarna pas de profielkeuze, en Voor jou is meteen compleet']],
     ['0.41', ['Momentopname van wat er nu op tv is in de live-kaarten, ipv het logo (een voor een op de achtergrond, 10 minuten bewaard)']],
     ['0.40', ['Live beeld in de geselecteerde live-kaart (gedempt, na 1,5 seconde)', 'Uit te zetten bij Instellingen > Uiterlijk > Live beeld in kaarten']],
     ['0.39', ['Rijen lopen nu door tot de rand van het scherm, op dezelfde plek', 'Omhoog en omlaag springt niet meer een rij over (o.a. Sport live)', 'Streaming-rij voorlopig weg']],
@@ -156,15 +157,25 @@
   function on(key, def) { return store.ui(key, def || 'on') !== 'off'; }
 
   // ---------- start intro ----------
-  const intro = { t0: Date.now(), done: false };
+  const intro = { t0: Date.now(), done: false, epgPending: false };
   function introStatus(t) { const e = $('intro-status'); if (e) e.textContent = t; }
-  function introDone() {
+  /** Closes the loading screen once the library, the guide and the sport list are ready (or when forced). */
+  function introDone(force) {
     if (intro.done) return;
+    if (!force) {
+      if (state.loading || intro.epgPending || sportBuild.busy) return;
+    }
     intro.done = true;
     const el = $('intro');
-    if (!el) return;
-    const wait = Math.max(0, (store.pref('intro') === 'off' ? 0 : 2600) - (Date.now() - intro.t0));
+    const next = function () {
+      if (state.askWho && !document.querySelector('.who')) showWho(true);
+      state.askWho = false;
+    };
+    if (!el) { next(); return; }
+    introStatus('Klaar');
+    const wait = Math.max(0, (store.pref('intro') === 'off' ? 0 : 2200) - (Date.now() - intro.t0));
     setTimeout(function () {
+      next();
       el.classList.add('out');
       setTimeout(function () { el.remove(); }, 700);
     }, wait);
@@ -628,7 +639,7 @@
   async function loadSource(src, force) {
     state.loading = 'Bibliotheek laden…';
     state.error = '';
-    introStatus('Bibliotheek laden…');
+    introStatus('Zenders, films en series laden…');
     render();
     const ua = src.ua || '';
     let lib;
@@ -659,7 +670,7 @@
       state.lastError = state.error;
       bump();
       render();
-      introDone();
+      introDone(true);
       return;
     }
     lib.live.forEach(function (c, i) { c.no = i + 1; c.no0 = i + 1; c.name0 = c.name; c.group0 = c.group; c.logo0 = c.logo; });
@@ -671,11 +682,11 @@
     state.loading = '';
     bump();
     render();
-    introDone();
     const before = store.seen(src.id);
     store.setSeen(src.id, lib.live.length);
     if (before && lib.live.length > before) toast((lib.live.length - before) + ' nieuwe zenders in je lijst');
-    if (epgUrl) { introStatus('Gids laden…'); loadEpg(epgUrl, lib, ua, force); }
+    if (epgUrl) { intro.epgPending = true; introStatus('Programmagids laden…'); loadEpg(epgUrl, lib, ua, force); }
+    else introDone();
     if (!state.booted) {
       state.booted = true;
       autoStart();
@@ -713,17 +724,21 @@
       if (off) Object.keys(merged.programmes).forEach(function (k) { merged.programmes[k].forEach(function (p) { p.start += off; p.stop += off; }); });
       state.epgData = merged;
       buildEpg();
-      introStatus('Gids geladen');
+      introStatus('Sport klaarzetten…');
       applyRecRules();
       if (!modalOpen() && (state.view === 'home' || state.view === 'live' || state.view === 'guide')) render(true);
+      sportList();
     } catch (e) {
       // The guide is optional; channels still work without it.
+    } finally {
+      intro.epgPending = false;
+      introDone();
     }
   }
 
   /** Starts the last watched channel right away when the profile asks for it. */
   function autoStart() {
-    if (!native || store.ui('autolive', 'off') !== 'on' || document.querySelector('.who')) return;
+    if (!native || store.ui('autolive', 'off') !== 'on' || state.askWho || document.querySelector('.who')) return;
     const rid = store.recent()[0];
     const list = vis('live');
     const i = list.findIndex(function (c) { return c.id === rid; });
@@ -1794,13 +1809,16 @@
         sportBuild.list = out;
         sportBuild.busy = false;
         if (state.view === 'sport' && !modalOpen()) render(true);
+        else if (state.view === 'home' && !intro.done && !modalOpen()) render(true);
         else if (!hadAny && out.length) buildNav();
+        introDone();
       } catch (e) {
         sportBuild.busy = false;
+        introDone();
         if (window.console) console.error('sport', e);
       }
     };
-    setTimeout(step, 1500);
+    setTimeout(step, intro.done ? 1500 : 30);
   }
 
   function myTeams() {
@@ -3831,10 +3849,10 @@
     if (tg) tg.textContent = 'Welkom, ' + store.profile().name;
     state.view = startView();
     const src = store.active();
-    if (store.profiles().length > 1 && store.pref('ask') !== 'off' && !document.querySelector('.who')) showWho(true);
+    state.askWho = store.profiles().length > 1 && store.pref('ask') !== 'off';
     if (src) loadSource(src, false);
     else { render(); introDone(); }
-    setTimeout(introDone, 20000);
+    setTimeout(function () { introDone(true); }, 45000);
     setTimeout(startupChecks, 6000);
   }
 
