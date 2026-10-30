@@ -8,6 +8,35 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.35: Fotoslideshow bij Live TV
+
+- Live TV krijgt een eigen set van 5 foto's (gedimd). Foto's toevoegen: `SLIDESETS.live` in `js/app.js`. Apart uit te zetten bij Instellingen, Uiterlijk.
+
+## 0.34: Slideshow met 5 foto's
+
+- Nieuwe Spider-Man-foto, The Walking Dead en een basketbalfoto erbij.
+
+## 0.33: Fotoslideshow op Voor jou
+
+- Achtergrondfoto's op Voor jou, elke 10 seconden een andere (vloeiende overgang). Andere schermen houden de rustige kleurwas.
+- Foto's toevoegen: zet het bestand in `app/src/main/assets/www/img/slides/` en voeg het pad toe aan `SLIDES` in `js/app.js`.
+- Uitzetten kan bij Instellingen, Uiterlijk.
+
+## 0.32: Live-infobalk
+
+- Druk je tijdens live tv op OK, dan zie je een balk onderin met het vorige programma, het huidige programma (zenderlogo, NU, begin- en eindtijd, oranje voortgangsbalk, oranje knop) en het volgende programma.
+- Bovenin staan 'SPEELT NU - LIVE TV' en de klok.
+- De actieknoppen staan onder de balk zodra je op OK drukt; na een zap zie je alleen de balk.
+- De gids-gegevens van de app bevatten nu ook het vorige programma.
+
+## 0.31: Sport-hub
+
+- Nieuwe tab **Sport** (verschijnt zodra de gids sport bevat; uit te zetten met de instelling `nav_sport`).
+- Sporttegels (voetbal, motorsport, tennis, wielrennen, darts, vechtsport, overig), Nu live-rij, aftrapkaarten ("Ajax - PSV"), programma per dag (Vandaag, Morgen, ...).
+- Mijn teams en sporten: rij Jouw wedstrijden (ook op Voor jou), melding 10 minuten voor de aftrap en een banner met Naar zender.
+- Gemist en opnames van sport, uitgelichte wedstrijd bovenaan, kleur per sport.
+- Sport wordt herkend aan titel/genre in de gids en aan zenders die als sportzender zijn gemarkeerd.
+
 ## Wat kan het
 
 | Onderdeel | Omschrijving |
@@ -174,3 +203,72 @@ Links de IPTV-categorieën, in het midden de zenders (met logo en voortgang), re
 ## Opknapbeurt 0.10
 
 Zachte poster- en achtergrondbeelden met een geblurde kleurlaag eromheen (niets lijkt meer afgekapt), betere animaties (titels schuiven in, kaarten komen omhoog, tab-streep tekent zich, pop-ups), een bovenbalk waar rijen netjes onderdoor schuiven en een live-stip bij "NU LIVE".
+
+## 0.18
+- Speler: alle actieknoppen bereikbaar (tijdverschuiving, live, nacht, opname, slaap), duidelijke foutmeldingen, OK bij een fout springt naar de volgende zender, radio blijft spelen op de achtergrond.
+- Afstandsbediening: zoektoets opent zoeken; rood/groen/geel/blauw = Live/Films/Series/Radio.
+
+## 0.19
+- Speler: nachtmodus in drie standen (uit/licht/sterk), kleur van ondertitels (Instellingen > Afspelen), actie "Aftiteling over", radioscherm met zendernaam, nu-spelend (ICY) en bewegende balkjes.
+- Opnames: "Bewaren in galerij" kopieert naar Movies/Luma.
+- Kinderprofielen: leeftijdsgrens voor films (6/9/12/16) via de TMDB-leeftijdsclassificatie.
+
+## 0.20
+- Home: rij "Volgende aflevering"; episodelijst met voortgangsbalkjes.
+- Speler: aftelscherm naar de volgende aflevering (OK = nu, Terug = stoppen), taal en ondertitels per serie onthouden, volume per zender (actie "Volume"), laatste-zender-toets.
+- Gids: sportknop (voetbal, F1, tennis, ...); herinnering heeft "Nu kijken".
+- Beheer: Zenders & fouten (logboek, verbergen), opslagoverzicht met opruimen, nachtstand op schema, back-up bij elke update.
+- Home lang indrukken: snelmenu.
+
+## 0.21
+- Home: rijen Samen kijken (gedeeld door alle profielen), Gezien deze week en Nieuw toegevoegd.
+- Profielkeuze toont wat elk profiel laatst keek.
+- Uiterlijk: klok in de hoek en rustige modus.
+
+## 0.22
+- Live TV: categorie lang indrukken = groep afspelen of groep testen op dode zenders.
+- Zoeken: knop Stemming (grappig, spannend, romantisch, gezin, echt, fantasierijk).
+- Seriekaart: "3 van 10 gezien". Favorieten sorteren op tijdstip. Nieuwsrij via RSS-link.
+- Na het toevoegen van een bron: proefcontrole van zes zenders.
+- Back-up per dag, de laatste vijf blijven bewaard.
+- Speler: audio- en ondertiteltoets van de afstandsbediening.
+
+## 0.23
+- Live: kijkgedrag per uur sorteert "Nu op tv"; sportalarm op namen; zender die vastloopt wordt na 15 s automatisch opnieuw verbonden.
+- Films: dubbele titels samenvoegen met keuze van versie.
+- Opnames: eerder beginnen en later stoppen. Kijktijd per profiel. Wekelijkse samenvatting op Home (maandag en dinsdag).
+- Speler: ondertitels later tonen (+0,5 tot +3 s).
+
+## 0.24
+- Live: pauzeren en daarna "Hervatten bij live" (verbindt opnieuw na 4 s), beeldformaat per zender onthouden, dubbele zenders (HD/SD) samenvoegen, favorieten in een eigen groep zetten (categorie Favorieten lang indrukken).
+- Back-up terugzetten met keuze uit de laatste back-ups; ouderlijk log (wat een kinderprofiel gisteren keek).
+- Nieuwe aflevering van een gevolgde serie: venster met knop Bekijken.
+
+## 0.25
+- Zoeken: programma's in de gids (met opnemen en herinneren), opnames als afspeellijst, zenderlijst exporteren (m3u).
+- Speler: intro automatisch overslaan per serie; fix: serie-id wordt nu aan de speler meegegeven (taal en ondertitels per serie werken daardoor echt).
+
+## 0.26
+- Speler: volgende zender met programma rechtsonder tijdens zappen.
+- Series: "Waar was ik gebleven?" (TMDB). Gids: ↻ bij herhalingen. Sportzenders markeren en filter ⚽ Sport.
+- Instellingen: startscherm na 18:00, zachte kijkwaarschuwing. Home: "Omdat jullie dit samen keken".
+
+## 0.27
+- Home: Nu iets goeds op tv (TMDB-score), Aankomende films op tv, Film van de avond, bronstatus.
+- Snelmenu (Home lang indrukken): Verras me met een zender, Laatste zenders.
+- Gids: acteurs en regisseur bij een programma. Instellingen: tekstgrootte.
+- Speler: twee keer snel OK = favoriet (live, zonder balk).
+
+## 0.28
+- Zelfcontrole bij het opstarten; "Wat is er nieuw" toont alle versies sinds je laatste update.
+- `scripts/test-tv.sh`: test, bouwt, installeert, start en toont fouten uit het logboek in één keer.
+- Extra tests (`tests/store.test.cjs`); alles draaien met `node --test tests/*.test.cjs`.
+
+## 0.29
+- Probleem melden: toont ook de laatste afspeelfouten en een QR-code naar het rapport op je telefoon.
+- Updates: herinnering over de app-sleutel; `scripts/bewaar-sleutel.sh` en `scripts/release.sh <versie>`.
+
+## 0.30
+- Home: Live en straks (LIVE-label, voortgang, straks), ronde Groepen, Alles bekijken bij elke rij.
+- Gids: Nu / Straks-weergave naast het tijdrooster. Films en Series: uitgelichte kaarten.
+- Navigatie als oranje pil; profielscherm met grote focus.

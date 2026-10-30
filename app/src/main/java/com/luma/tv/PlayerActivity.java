@@ -89,6 +89,7 @@ public class PlayerActivity extends Activity {
         String url;
         String group = "";
         String logo = "";
+        String showId = "";
         int num;
         long[] ps = new long[0];
         long[] pe = new long[0];
@@ -118,7 +119,22 @@ public class PlayerActivity extends Activity {
     private boolean autoNext = true;
     private boolean stopAfter;
     private boolean repeatOne;
-    private boolean night;
+    private TextView peekView;
+    private long lastOk;
+    private long pausedAt;
+    private boolean autoIntro;
+    private long introAt;
+    private boolean introDone;
+    private int subDelay;
+    private static final int[] SUBDELAYS = {0, 500, 1000, 2000, 3000};
+    private int subDelayIdx;
+    private int night;
+    private int nightFrom = -1, nightTo = -1;
+    private TextView bingeView;
+    private int bingeLeft;
+    private int subColor = Color.WHITE;
+    private FrameLayout radioView;
+    private TextView radioTitle, radioNow;
     // timeshift: the buffer file, and whether the player is watching it instead of the live stream
     private boolean tsAuto;
     private boolean shiftOn;
@@ -144,8 +160,8 @@ public class PlayerActivity extends Activity {
     private final List<String> done = new ArrayList<>();
     private static final float[] SPEEDS = {0.75f, 1f, 1.25f, 1.5f, 2f};
     private static final int[] SLEEPS = {0, 15, 30, 60, 90};
-    private static final String[] LIVE_ACTS = {"pp", "restart", "list", "fav", "prev", "subs", "audio", "info", "aspect", "tsback", "tsfwd", "golive", "night", "rec", "sleep"};
-    private static final String[] VOD_ACTS = {"pp", "skip", "next", "speed", "subs", "audio", "info", "aspect", "night", "repeat", "stopafter", "sleep"};
+    private static final String[] LIVE_ACTS = {"pp", "restart", "list", "fav", "prev", "subs", "audio", "info", "aspect", "tsback", "tsfwd", "golive", "night", "rec", "vol", "sleep"};
+    private static final String[] VOD_ACTS = {"pp", "skip", "next", "speed", "subs", "audio", "info", "aspect", "night", "repeat", "stopafter", "credits", "subdelay", "sleep"};
     private SubtitleView subtitles;
     private TextView flashView;
 
@@ -169,13 +185,23 @@ public class PlayerActivity extends Activity {
     private TextView descView;
     private ProgressBar bar;
     private LinearLayout actionsRow;
-    private final TextView[] actionViews = new TextView[10];
+    private final TextView[] actionViews = new TextView[20];
     private static final int PRIMARY = 4;
     private final LruCache<String, Bitmap> logos = new LruCache<>(40);
     private final Set<String> loadingLogos = new LinkedHashSet<>();
     private boolean optsShown;
     private LinearLayout optsRow;
     private TextView timeView;
+    private TextView nowTag;
+    private TextView clockView;
+    private TextView prevTitle;
+    private TextView prevTime;
+    private TextView nextTitle;
+    private TextView nextTime;
+    private ImageView mainLogo;
+    private LinearLayout topBar;
+    private LinearLayout prevTile;
+    private LinearLayout nextTile;
     private LinearLayout listPanel;
     private final TextView[] listRows = new TextView[ROWS];
 
@@ -193,6 +219,14 @@ public class PlayerActivity extends Activity {
                 String id = items.get(index).id;
                 Long w = watch.get(id);
                 watch.put(id, (w == null ? 0L : w) + 1000L);
+            }
+            if (introAt > 0 && !introDone && !live && player != null) {
+                long pos = player.getCurrentPosition();
+                if (pos >= introAt && pos < introAt + 4000) {
+                    introDone = true;
+                    seekBy(skipMs);
+                    flash("Intro automatisch overgeslagen");
+                } else if (pos >= introAt + 4000) introDone = true;
             }
             refresh();
             handler.postDelayed(this, 1000);
@@ -234,6 +268,16 @@ public class PlayerActivity extends Activity {
             maxH = o.optInt("maxH", 0);
             recMin = Math.max(1, o.optInt("recMin", 60));
             tsAuto = o.optBoolean("tsAuto", false);
+            autoIntro = o.optBoolean("autoIntro", false);
+            nightFrom = o.optInt("nightFrom", -1);
+            nightTo = o.optInt("nightTo", -1);
+            if (nightFrom >= 0 && nightTo >= 0) {
+                int hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
+                boolean inside = nightFrom <= nightTo ? (hr >= nightFrom && hr < nightTo) : (hr >= nightFrom || hr < nightTo);
+                if (inside) night = 2;
+            }
+            String sc = o.optString("subColor", "wit");
+            subColor = "geel".equals(sc) ? 0xFFFFE066 : "groen".equals(sc) ? 0xFF7CFF8A : "cyaan".equals(sc) ? 0xFF7CF3FF : Color.WHITE;
             subScale = (float) Math.max(0.5, Math.min(3.0, o.optDouble("subScale", 1.0)));
             autoNext = o.optBoolean("autoNext", true);
             skipMs = Math.max(10000, o.optLong("skipMs", skipMs));
@@ -265,6 +309,7 @@ public class PlayerActivity extends Activity {
         it.url = o.optString("url", "");
         it.group = o.optString("group", "");
         it.logo = o.optString("logo", "");
+        it.showId = o.optString("showId", "");
         it.num = o.optInt("num", 0);
         JSONArray al = o.optJSONArray("alt");
         if (al != null) {
@@ -330,12 +375,224 @@ public class PlayerActivity extends Activity {
         return lum > 0.6 ? 0xFF14110A : Color.WHITE;
     }
 
+    private final Runnable bingeTick = new Runnable() {
+        @Override
+        public void run() {
+            if (bingeLeft <= 0 || closing) return;
+            bingeLeft--;
+            if (bingeLeft == 0) {
+                bingeNow();
+                return;
+            }
+            showBinge();
+            handler.postDelayed(this, 1000);
+        }
+    };
+
+    private void startBinge() {
+        bingeLeft = 8;
+        showBinge();
+        handler.postDelayed(bingeTick, 1000);
+    }
+
+    private void showBinge() {
+        bingeView.setText("Volgende: " + items.get(index + 1).title + "  ·  over " + bingeLeft + " s\nOK = nu afspelen   Terug = stoppen");
+        bingeView.setVisibility(View.VISIBLE);
+    }
+
+    private void bingeNow() {
+        handler.removeCallbacks(bingeTick);
+        bingeLeft = 0;
+        bingeView.setVisibility(View.GONE);
+        play(index + 1);
+    }
+
+    private void bingeCancel() {
+        handler.removeCallbacks(bingeTick);
+        bingeLeft = 0;
+        bingeView.setVisibility(View.GONE);
+        ended = true;
+        finishWithResult();
+    }
+
+    private android.content.SharedPreferences prefs() {
+        return getSharedPreferences("luma_player", MODE_PRIVATE);
+    }
+
+    private boolean isRadio(Item it) {
+        return live && it.group != null && it.group.toLowerCase(Locale.ROOT).contains("radio");
+    }
+
+    private final class Bars extends View {
+        private final android.graphics.Paint paint = new android.graphics.Paint();
+        private final java.util.Random rnd = new java.util.Random();
+        private final float[] h = new float[20];
+
+        Bars(android.content.Context c) {
+            super(c);
+            paint.setColor(accent);
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas cv) {
+            boolean on = player != null && player.isPlaying();
+            float w = getWidth() / (float) h.length;
+            for (int i = 0; i < h.length; i++) {
+                h[i] = on ? 0.15f + rnd.nextFloat() * 0.85f : 0.1f;
+                float bh = h[i] * getHeight();
+                cv.drawRect(i * w + w * 0.2f, getHeight() - bh, (i + 1) * w - w * 0.2f, getHeight(), paint);
+            }
+            postInvalidateDelayed(140);
+        }
+    }
+
+    /** One of the two dimmed side tiles (previous / next programme) of the live bar. */
+    private LinearLayout sideTile(boolean prev) {
+        LinearLayout t = new LinearLayout(this);
+        t.setOrientation(LinearLayout.VERTICAL);
+        t.setPadding(dp(14), dp(14), dp(14), dp(12));
+        t.setBackground(rounded(0xE6161715, 4));
+        TextView title = text(17, 0xFFB9B9B9, false);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        TextView time = text(15, 0xFF8F8F8F, false);
+        time.setSingleLine(true);
+        View line = new View(this);
+        line.setBackgroundColor(0xFF8A8A8A);
+        t.addView(title);
+        t.addView(time);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(3));
+        lp.setMargins(0, dp(12), 0, 0);
+        t.addView(line, lp);
+        if (prev) { prevTitle = title; prevTime = time; } else { nextTitle = title; nextTime = time; }
+        return t;
+    }
+
+    /** The live info bar: previous programme, the programme on now with logo, times and progress, and the next one. */
+    private void buildLiveBar(FrameLayout root) {
+        bottom.setPadding(dp(32), dp(90), dp(32), dp(26));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        prevTile = sideTile(true);
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(190), -2);
+        pl.setMargins(0, 0, dp(14), 0);
+        row.addView(prevTile, pl);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(rounded(0xF2171816, 4));
+        View top = new View(this);
+        top.setBackgroundColor(accent);
+        card.addView(top, new LinearLayout.LayoutParams(-1, dp(2)));
+        LinearLayout inner = new LinearLayout(this);
+        inner.setOrientation(LinearLayout.HORIZONTAL);
+        inner.setGravity(Gravity.CENTER_VERTICAL);
+        inner.setPadding(dp(18), dp(12), dp(18), dp(8));
+        mainLogo = new ImageView(this);
+        mainLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        inner.addView(mainLogo, new LinearLayout.LayoutParams(dp(60), dp(60)));
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        titleView.setTextSize(26);
+        titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        col.addView(titleView);
+        LinearLayout tl = new LinearLayout(this);
+        tl.setOrientation(LinearLayout.HORIZONTAL);
+        tl.setGravity(Gravity.CENTER_VERTICAL);
+        nowTag = text(13, 0xFFE0E0E0, true);
+        nowTag.setText("NU");
+        timeView.setTextSize(18);
+        timeView.setGravity(Gravity.START);
+        timeView.setTextColor(Color.WHITE);
+        timeView.setPadding(dp(12), 0, 0, 0);
+        tl.addView(nowTag);
+        tl.addView(timeView);
+        col.addView(tl);
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -2, 1f);
+        cl.setMargins(dp(16), 0, dp(12), 0);
+        inner.addView(col, cl);
+        TextView dots = text(22, onAccent(), true);
+        dots.setText("•••");
+        dots.setGravity(Gravity.CENTER);
+        dots.setPadding(dp(28), dp(12), dp(28), dp(12));
+        dots.setBackground(rounded(accent, 4));
+        inner.addView(dots, new LinearLayout.LayoutParams(-2, -2));
+        card.addView(inner);
+        bar.setProgressBackgroundTintList(ColorStateList.valueOf(0x55FFFFFF));
+        card.addView(bar, new LinearLayout.LayoutParams(-1, dp(5)));
+        row.addView(card, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        nextTile = sideTile(false);
+        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(dp(190), -2);
+        nl.setMargins(dp(14), 0, 0, 0);
+        row.addView(nextTile, nl);
+        bottom.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+        bottom.addView(descView);
+        LinearLayout.LayoutParams ar = new LinearLayout.LayoutParams(-2, -2);
+        ar.setMargins(dp(8), dp(14), 0, 0);
+        bottom.addView(actionsRow, ar);
+        LinearLayout.LayoutParams or2 = new LinearLayout.LayoutParams(-2, -2);
+        or2.setMargins(dp(8), dp(10), 0, 0);
+        bottom.addView(optsRow, or2);
+
+        topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setPadding(dp(32), dp(20), dp(32), dp(40));
+        topBar.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xB3000000, 0x00000000}));
+        TextView where = text(15, Color.WHITE, false);
+        where.setText("SPEELT NU - LIVE TV");
+        where.setLetterSpacing(0.04f);
+        topBar.addView(where, new LinearLayout.LayoutParams(0, -2, 1f));
+        clockView = text(20, Color.WHITE, false);
+        topBar.addView(clockView);
+        topBar.setVisibility(View.GONE);
+        root.addView(topBar, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+    }
+
+    /** Index of the last programme that ended before now (or the one before the current one), or -1. */
+    private static int progPrev(Item it, long now) {
+        int n = progNow(it, now);
+        if (n >= 0) return n - 1;
+        int best = -1;
+        for (int i = 0; i < it.pt.length; i++) if (it.pe[i] <= now) best = i;
+        return best;
+    }
+
     private void buildUi() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
         surface = new SurfaceView(this);
         root.addView(surface, new FrameLayout.LayoutParams(-1, -1));
+
+        bingeView = text(26, Color.WHITE, true);
+        bingeView.setGravity(Gravity.CENTER);
+        bingeView.setPadding(48, 28, 48, 28);
+        bingeView.setBackgroundColor(0xE6101018);
+        bingeView.setVisibility(View.GONE);
+        radioView = new FrameLayout(this);
+        radioView.setBackgroundColor(0xFF0B0B10);
+        radioView.setVisibility(View.GONE);
+        LinearLayout rl = new LinearLayout(this);
+        rl.setOrientation(LinearLayout.VERTICAL);
+        rl.setGravity(Gravity.CENTER);
+        radioTitle = text(44, Color.WHITE, true);
+        radioTitle.setGravity(Gravity.CENTER);
+        radioNow = text(24, 0xFFB8B8C4, false);
+        radioNow.setGravity(Gravity.CENTER);
+        rl.addView(radioTitle, new LinearLayout.LayoutParams(-2, -2));
+        rl.addView(radioNow, new LinearLayout.LayoutParams(-2, -2));
+        rl.addView(new Bars(this), new LinearLayout.LayoutParams(420, 120));
+        radioView.addView(rl, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(radioView, new FrameLayout.LayoutParams(-1, -1));
+
+        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        bl.bottomMargin = 140;
+        root.addView(bingeView, bl);
 
         subtitles = new SubtitleView(this);
         subtitles.setUserDefaultStyle();
@@ -350,6 +607,14 @@ public class PlayerActivity extends Activity {
         fp.setMargins(0, dp(32), 0, 0);
         root.addView(flashView, fp);
 
+        peekView = text(18, 0xFFE8E8F0, false);
+        peekView.setBackgroundColor(0xB0101018);
+        peekView.setPadding(24, 14, 24, 14);
+        peekView.setVisibility(View.GONE);
+        FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        pp.setMargins(0, 0, dp(32), dp(200));
+        root.addView(peekView, pp);
+
         spinner = new ProgressBar(this);
         spinner.setVisibility(View.GONE);
         root.addView(spinner, new FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER));
@@ -363,7 +628,7 @@ public class PlayerActivity extends Activity {
         recentRow.setOrientation(LinearLayout.HORIZONTAL);
         recentRow.setVisibility(View.GONE);
         FrameLayout.LayoutParams rp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
-        rp.setMargins(dp(48), dp(32), 0, 0);
+        rp.setMargins(dp(32), live ? dp(64) : dp(32), 0, 0);
         root.addView(recentRow, rp);
 
         chNum = text(40, Color.WHITE, true);
@@ -422,20 +687,23 @@ public class PlayerActivity extends Activity {
         }
         timeView = text(14, 0xCCFFFFFF, false);
         timeView.setGravity(Gravity.END);
-        bottom.addView(titleView);
-        bottom.addView(subView);
-        bottom.addView(nextView);
-        bottom.addView(descView);
-        LinearLayout.LayoutParams rp2 = new LinearLayout.LayoutParams(-2, -2);
-        rp2.setMargins(0, dp(14), 0, 0);
-        bottom.addView(actionsRow, rp2);
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, dp(5));
-        bp.setMargins(0, dp(14), 0, dp(6));
-        bottom.addView(bar, bp);
-        bottom.addView(timeView, new LinearLayout.LayoutParams(-1, -2));
-        LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(-2, -2);
-        op.setMargins(0, dp(10), 0, 0);
-        bottom.addView(optsRow, op);
+        if (live) buildLiveBar(root);
+        else {
+            bottom.addView(titleView);
+            bottom.addView(subView);
+            bottom.addView(nextView);
+            bottom.addView(descView);
+            LinearLayout.LayoutParams rp2 = new LinearLayout.LayoutParams(-2, -2);
+            rp2.setMargins(0, dp(14), 0, 0);
+            bottom.addView(actionsRow, rp2);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, dp(5));
+            bp.setMargins(0, dp(14), 0, dp(6));
+            bottom.addView(bar, bp);
+            bottom.addView(timeView, new LinearLayout.LayoutParams(-1, -2));
+            LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(-2, -2);
+            op.setMargins(0, dp(10), 0, 0);
+            bottom.addView(optsRow, op);
+        }
         bottom.setVisibility(View.GONE);
         root.addView(bottom, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
 
@@ -479,6 +747,7 @@ public class PlayerActivity extends Activity {
                 .build();
         player.setVideoSurfaceView(surface);
         subtitles.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * subScale);
+        subtitles.setStyle(new androidx.media3.ui.CaptionStyleCompat(subColor, Color.TRANSPARENT, Color.TRANSPARENT, androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null));
         TrackSelectionParameters.Builder tp = player.getTrackSelectionParameters().buildUpon();
         if (!audioLang.isEmpty()) tp.setPreferredAudioLanguage(audioLang);
         if ("off".equals(subLang) || subLang.isEmpty()) tp.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
@@ -495,18 +764,28 @@ public class PlayerActivity extends Activity {
             }
 
             @Override
+            public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata md) {
+                if (items == null || index >= items.size() || !isRadio(items.get(index))) return;
+                CharSequence t = md.title != null ? md.title : md.artist;
+                if (t != null && t.length() > 0) radioNow.setText(md.artist != null && md.title != null ? md.artist + " – " + md.title : t);
+            }
+
+            @Override
             public void onRenderedFirstFrame() {
                 handler.removeCallbacks(noPicture);
             }
 
             @Override
             public void onCues(CueGroup cueGroup) {
-                subtitles.setCues(cueGroup.cues);
+                if (subDelay > 0) handler.postDelayed(() -> subtitles.setCues(cueGroup.cues), subDelay);
+                else subtitles.setCues(cueGroup.cues);
             }
 
             @Override
             public void onPlaybackStateChanged(int state) {
                 spinner.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+                handler.removeCallbacks(stall);
+                if (state == Player.STATE_BUFFERING && live && !onFile && !isRadio(items.get(index))) handler.postDelayed(stall, 15000);
                 if (state == Player.STATE_READY) {
                     retries = 0;
                     errorView.setVisibility(View.GONE);
@@ -523,7 +802,7 @@ public class PlayerActivity extends Activity {
                     if (autoNext && !stopAfter && index + 1 < items.size()) {
                         done.add(items.get(index).id);
                         startPosition = 0;
-                        play(index + 1);
+                        startBinge();
                     } else {
                         ended = true;
                         finishWithResult();
@@ -549,16 +828,69 @@ public class PlayerActivity extends Activity {
         setMode(live ? BRIEF : BAR);
         long from = (!live && startPosition > 0) ? startPosition : C.TIME_UNSET;
         String url = (altTry > 0 && altTry <= it.alt.length) ? it.alt[altTry - 1] : it.url;
+        boolean radio = isRadio(it);
+        radioView.setVisibility(radio ? View.VISIBLE : View.GONE);
+        if (radio) {
+            radioTitle.setText(it.title);
+            radioNow.setText(it.group);
+        }
         handler.removeCallbacks(noPicture);
         if (live && !it.group.toLowerCase(Locale.ROOT).contains("radio")) handler.postDelayed(noPicture, 20000);
         curUrl = url;
         onFile = false;
         shiftWait = false;
+        applyItemPrefs(it);
         player.setMediaItem(MediaItem.fromUri(url), from);
         player.prepare();
         player.setPlayWhenReady(true);
         if (live && tsAuto && !shiftOn) startShift();
     }
+
+    private void applyItemPrefs(Item it) {
+        float vol = live ? prefs().getFloat("vol:" + it.id, 1f) : 1f;
+        player.setVolume(vol);
+        if (live) {
+            int sa = prefs().getInt("asp:" + it.id, -1);
+            if (sa >= 0 && sa != aspect) {
+                aspect = sa;
+                applyAspect();
+            }
+        }
+        introDone = false;
+        introAt = (!live && autoIntro && !it.showId.isEmpty()) ? prefs().getLong("ia:" + it.showId, 0L) : 0L;
+        if (!live && !it.showId.isEmpty()) {
+            String al = prefs().getString("a:" + it.showId, null);
+            String sl = prefs().getString("s:" + it.showId, null);
+            TrackSelectionParameters.Builder tb = player.getTrackSelectionParameters().buildUpon();
+            if (al != null && !al.isEmpty()) tb.setPreferredAudioLanguage(al);
+            if (sl != null) {
+                if (sl.isEmpty()) tb.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
+                else tb.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setPreferredTextLanguage(sl);
+            }
+            player.setTrackSelectionParameters(tb.build());
+        }
+    }
+
+    private static final float[] VOLS = {1f, 0.8f, 0.6f, 0.45f, 0.3f};
+
+    private void cycleVol() {
+        Item it = items.get(index);
+        float cur = prefs().getFloat("vol:" + it.id, 1f);
+        int n = 0;
+        for (int i = 0; i < VOLS.length; i++) if (Math.abs(VOLS[i] - cur) < 0.02f) n = i;
+        n = (n + 1) % VOLS.length;
+        prefs().edit().putFloat("vol:" + it.id, VOLS[n]).apply();
+        player.setVolume(VOLS[n]);
+        flash("Volume van deze zender: " + Math.round(VOLS[n] * 100) + "%");
+    }
+
+    private final Runnable stall = () -> {
+        if (closing || player == null || !live || onFile || player.getPlaybackState() != Player.STATE_BUFFERING) return;
+        if (retries >= 3) return;
+        retries++;
+        flash("Zender hapert: opnieuw verbinden…");
+        play(index);
+    };
 
     private final Runnable noPicture = () -> {
         if (closing || player == null || !live) return;
@@ -566,6 +898,7 @@ public class PlayerActivity extends Activity {
     };
 
     private void handleError(PlaybackException error) {
+        ErrLog.add(this, items.get(index).id, items.get(index).title, error.getErrorCodeName());
         if (live && onFile) {
             flash("Terugkijken lukt niet: terug naar live");
             goLive();
@@ -580,7 +913,7 @@ public class PlayerActivity extends Activity {
             }, 1000);
             return;
         }
-        errorView.setText(getString(R.string.player_error) + "\n" + error.getErrorCodeName() + (live ? "\nDruk op ▲ of ▼ voor een andere zender" : ""));
+        errorView.setText(friendly(error) + (live ? "\nDruk op OK, ▲ of ▼ voor een andere zender" : ""));
         errorView.setVisibility(View.VISIBLE);
         if (live && retries < 3) {
             retries++;
@@ -588,6 +921,19 @@ public class PlayerActivity extends Activity {
                 if (!closing) play(index);
             }, 3000);
         }
+    }
+
+    private String friendly(PlaybackException e) {
+        int c = e.errorCode;
+        if (c == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || c == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT)
+            return "Geen verbinding met de zender";
+        if (c == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS || c == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND)
+            return "De zender reageert niet of bestaat niet meer";
+        if (c == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED || c == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED)
+            return "De zender stuurt een onleesbaar signaal";
+        if (c == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED || c == PlaybackException.ERROR_CODE_DECODING_FAILED)
+            return "Dit beeldformaat wordt niet ondersteund";
+        return getString(R.string.player_error) + " (" + e.getErrorCodeName() + ")";
     }
 
     private void zap(int delta) {
@@ -709,6 +1055,16 @@ public class PlayerActivity extends Activity {
         player.setTrackSelectionParameters(b.build());
         if (text) subSel = next;
         else audioSel = next;
+        Item cur = items.get(index);
+        if (!cur.showId.isEmpty()) {
+            String code = "";
+            if (next >= 0) {
+                Format sf = gs.get(next).getTrackFormat(0);
+                code = sf.language != null ? sf.language : "";
+            }
+            if (!text && next < 0) prefs().edit().remove("a:" + cur.showId).apply();
+            else prefs().edit().putString((text ? "s:" : "a:") + cur.showId, code).apply();
+        }
         flash(name);
     }
 
@@ -861,15 +1217,15 @@ public class PlayerActivity extends Activity {
                 dyn.release();
                 dyn = null;
             }
-            if (!night || player == null) return;
+            if (night == 0 || player == null) return;
             DynamicsProcessing.Config cfg = new DynamicsProcessing.Config.Builder(
                     DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION, 2, false, 0, false, 0, false, 0, true).build();
             dyn = new DynamicsProcessing(0, player.getAudioSessionId(), cfg);
-            DynamicsProcessing.Limiter lim = new DynamicsProcessing.Limiter(true, true, 0, 1f, 80f, 6f, -24f, 8f);
+            DynamicsProcessing.Limiter lim = new DynamicsProcessing.Limiter(true, true, 0, 1f, 80f, night == 1 ? 4f : 10f, night == 1 ? -20f : -32f, night == 1 ? 4f : 10f);
             dyn.setLimiterAllChannelsTo(lim);
             dyn.setEnabled(true);
         } catch (Throwable t) {
-            night = false;
+            night = 0;
             flash("Nachtmodus werkt niet op dit apparaat");
         }
     }
@@ -918,9 +1274,11 @@ public class PlayerActivity extends Activity {
             optsShown = false;
         }
         bottom.setVisibility(m == HIDDEN || m == LIST ? View.GONE : View.VISIBLE);
-        actionsRow.setVisibility(m == BAR || (live && m == BRIEF) ? View.VISIBLE : View.GONE);
+        actionsRow.setVisibility(m == BAR ? View.VISIBLE : View.GONE);
+        if (topBar != null) topBar.setVisibility(live && (m == BAR || m == BRIEF) ? View.VISIBLE : View.GONE);
         recentRow.setVisibility(live && (m == BAR || m == BRIEF) ? View.VISIBLE : View.GONE);
         chNum.setVisibility(live && m != HIDDEN ? View.VISIBLE : View.GONE);
+        if (m == HIDDEN || m == LIST || !live) peekView.setVisibility(View.GONE);
         listPanel.setVisibility(m == LIST ? View.VISIBLE : View.GONE);
         if (m == LIST) {
             listSel = index;
@@ -951,11 +1309,37 @@ public class PlayerActivity extends Activity {
             subView.setText(dd.isEmpty() ? it.group : dd);
             nextView.setText(it.title + (x >= 0 ? "   ·   Hierna: " + it.pt[x] + " (" + hm(it.ps[x]) + ")" : ""));
             nextView.setVisibility(View.VISIBLE);
+            if (items.size() > 1 && mode != LIST) {
+                Item nx = items.get((index + 1) % items.size());
+                int nn = progNow(nx, now);
+                peekView.setText("▼ " + (nx.num > 0 ? nx.num + "  " : "") + nx.title + (nn >= 0 ? "\n" + nx.pt[nn] : ""));
+                peekView.setVisibility(View.VISIBLE);
+            } else peekView.setVisibility(View.GONE);
             String d = n >= 0 ? it.pd[n] : "";
             if (infoOn) d = (d.isEmpty() ? "" : d + "\n") + techLine();
             descView.setText(d);
             descView.setVisibility(infoOn && !d.isEmpty() ? View.VISIBLE : View.GONE);
-            timeView.setText(n >= 0 ? hm(it.ps[n]) + " – " + hm(it.pe[n]) + "   ·   nog " + Math.max(1, (it.pe[n] - now) / 60000) + " min" : "");
+            timeView.setText(n >= 0 ? hm(it.ps[n]) + " - " + hm(it.pe[n]) : "");
+            if (clockView != null) clockView.setText(hm(now));
+            if (mainLogo != null) {
+                mainLogo.setImageDrawable(null);
+                loadLogo(it.logo, mainLogo);
+            }
+            int pv = progPrev(it, now);
+            if (prevTile != null) {
+                prevTile.setVisibility(pv >= 0 ? View.VISIBLE : View.INVISIBLE);
+                if (pv >= 0) {
+                    prevTitle.setText(it.pt[pv]);
+                    prevTime.setText(hm(it.ps[pv]) + " - " + hm(it.pe[pv]));
+                }
+            }
+            if (nextTile != null) {
+                nextTile.setVisibility(x >= 0 ? View.VISIBLE : View.INVISIBLE);
+                if (x >= 0) {
+                    nextTitle.setText(it.pt[x]);
+                    nextTime.setText(hm(it.ps[x]) + " - " + hm(it.pe[x]));
+                }
+            }
             if (n >= 0 && it.pe[n] > it.ps[n]) {
                 bar.setVisibility(View.VISIBLE);
                 bar.setMax(1000);
@@ -994,7 +1378,7 @@ public class PlayerActivity extends Activity {
 
     private String labelFor(String a) {
         switch (a) {
-            case "pp": return player != null && !player.getPlayWhenReady() ? "▶" : "II";
+            case "pp": return player != null && !player.getPlayWhenReady() ? (live && !onFile && !shiftOn ? "▶ Hervatten bij live" : "▶") : "II";
             case "restart": return "↺";
             case "list": return "≡ Lijst";
             case "fav": return favs.contains(items.get(index).id) ? "★ Favoriet" : "☆ Favoriet";
@@ -1007,7 +1391,13 @@ public class PlayerActivity extends Activity {
             case "tsfwd": return "30 s ⏩";
             case "golive": return onFile ? "● Live (−" + format(Math.max(0, shiftElapsed() - player.getCurrentPosition())) + ")" : "● Live";
             case "rec": return Recorder.REC.active() ? "■ Stop opname" : "● Opnemen";
-            case "night": return night ? "Nacht: aan" : "Nacht: uit";
+            case "vol": {
+                float v = prefs().getFloat("vol:" + items.get(index).id, 1f);
+                return "Volume " + Math.round(v * 100) + "%";
+            }
+            case "night": return night == 0 ? "Nacht: uit" : night == 1 ? "Nacht: licht" : "Nacht: sterk";
+            case "credits": return "Aftiteling over";
+            case "subdelay": return subDelay == 0 ? "Ondertitel: op tijd" : "Ondertitel +" + (subDelay / 1000f) + "s";
             case "repeat": return repeatOne ? "Herhalen: aan" : "Herhalen: uit";
             case "stopafter": return stopAfter ? "Stop erna: aan" : "Stop erna: uit";
             case "sleep": return sleepIdx == 0 ? "Slaaptimer" : "Slaap " + SLEEPS[sleepIdx] + "m";
@@ -1126,7 +1516,14 @@ public class PlayerActivity extends Activity {
     private void doAction() {
         switch (acts()[action]) {
             case "pp":
-                if (live) tsPause();
+                if (live && !onFile && !shiftOn && !shiftWait) {
+                    if (player.getPlayWhenReady()) {
+                        pausedAt = System.currentTimeMillis();
+                        player.setPlayWhenReady(false);
+                    } else if (System.currentTimeMillis() - pausedAt > 4000) {
+                        goLive();
+                    } else player.setPlayWhenReady(true);
+                } else if (live) tsPause();
                 else player.setPlayWhenReady(!player.getPlayWhenReady());
                 break;
             case "restart":
@@ -1149,6 +1546,7 @@ public class PlayerActivity extends Activity {
             case "aspect":
                 aspect = (aspect + 1) % 3;
                 applyAspect();
+                if (live) prefs().edit().putInt("asp:" + items.get(index).id, aspect).apply();
                 break;
             case "audio":
                 cycleTrack(C.TRACK_TYPE_AUDIO);
@@ -1176,10 +1574,13 @@ public class PlayerActivity extends Activity {
                     flash(path.isEmpty() ? "Er loopt al een opname" : "Opname gestart: " + cur.title + " (max " + recMin + " min)");
                 }
                 break;
+            case "vol":
+                cycleVol();
+                break;
             case "night":
-                night = !night;
+                night = (night + 1) % 3;
                 applyNight();
-                if (night) flash("Nachtmodus: zachtere pieken");
+                if (night > 0) flash("Nachtmodus: " + (night == 1 ? "licht" : "sterk") + " (zachtere pieken)");
                 break;
             case "repeat":
                 repeatOne = !repeatOne;
@@ -1193,7 +1594,20 @@ public class PlayerActivity extends Activity {
                 cycleSleep();
                 break;
             case "skip":
+                if (!items.get(index).showId.isEmpty()) prefs().edit().putLong("ia:" + items.get(index).showId, player.getCurrentPosition()).apply();
                 seekBy(skipMs);
+                break;
+            case "subdelay":
+                subDelayIdx = (subDelayIdx + 1) % SUBDELAYS.length;
+                subDelay = SUBDELAYS[subDelayIdx];
+                flash(subDelay == 0 ? "Ondertitels op tijd" : "Ondertitels komen " + (subDelay / 1000f) + " s later");
+                break;
+            case "credits":
+                if (index + 1 < items.size()) {
+                    playNext();
+                    return;
+                }
+                if (player.getDuration() != C.TIME_UNSET) player.seekTo(Math.max(0, player.getDuration() - 1500));
                 break;
             case "next":
                 playNext();
@@ -1213,12 +1627,34 @@ public class PlayerActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (bingeLeft > 0) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) bingeNow();
+            else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) bingeCancel();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK) {
+            cycleTrack(C.TRACK_TYPE_AUDIO);
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_CAPTIONS) {
+            cycleTrack(C.TRACK_TYPE_TEXT);
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_LAST_CHANNEL && live) {
+            previousChannel();
+            return true;
+        }
         if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9 && live) {
             if (digits.length() < 4) digits += (keyCode - KeyEvent.KEYCODE_0);
             numView.setText(digits);
             numView.setVisibility(View.VISIBLE);
             handler.removeCallbacks(tune);
             handler.postDelayed(tune, 1500);
+            return true;
+        }
+        if (live && errorView.getVisibility() == View.VISIBLE
+                && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            zap(1);
             return true;
         }
         switch (keyCode) {
@@ -1297,6 +1733,23 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
                 if (event.getRepeatCount() > 0) return true;
+                if (live && (mode == HIDDEN || mode == BRIEF)) {
+                    long nowMs = System.currentTimeMillis();
+                    if (nowMs - lastOk < 350) {
+                        lastOk = 0;
+                        for (int i = 0; i < acts().length; i++) {
+                            if ("fav".equals(acts()[i])) {
+                                int old = action;
+                                action = i;
+                                doAction();
+                                action = old;
+                                break;
+                            }
+                        }
+                        return true;
+                    }
+                    lastOk = nowMs;
+                }
                 if (live) {
                     if (mode == LIST) {
                         gotoChannel(listSel);
@@ -1341,6 +1794,10 @@ public class PlayerActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (bingeLeft > 0) {
+            bingeCancel();
+            return;
+        }
         if (mode == LIST) {
             setMode(BAR);
             return;
@@ -1378,7 +1835,8 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        if (player != null) player.pause();
+        boolean radio = live && items != null && index < items.size() && items.get(index).group.toLowerCase(Locale.ROOT).contains("radio");
+        if (player != null && !radio) player.pause();
     }
 
     @Override

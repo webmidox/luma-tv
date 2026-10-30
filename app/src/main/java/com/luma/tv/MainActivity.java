@@ -97,6 +97,21 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent ev) {
+        String call = null;
+        if (keyCode == android.view.KeyEvent.KEYCODE_SEARCH) call = "window.lumaSearch&&window.lumaSearch()";
+        else if (keyCode == android.view.KeyEvent.KEYCODE_PROG_RED) call = "window.lumaGo&&window.lumaGo('live')";
+        else if (keyCode == android.view.KeyEvent.KEYCODE_PROG_GREEN) call = "window.lumaGo&&window.lumaGo('vod')";
+        else if (keyCode == android.view.KeyEvent.KEYCODE_PROG_YELLOW) call = "window.lumaGo&&window.lumaGo('series')";
+        else if (keyCode == android.view.KeyEvent.KEYCODE_PROG_BLUE) call = "window.lumaGo&&window.lumaGo('radio')";
+        if (call != null && web != null) {
+            web.evaluateJavascript(call, null);
+            return true;
+        }
+        return super.onKeyDown(keyCode, ev);
+    }
+
+    @Override
     public void onBackPressed() {
         web.evaluateJavascript("window.lumaBack ? window.lumaBack() : false", value -> {
             if (!"true".equals(value)) finish();

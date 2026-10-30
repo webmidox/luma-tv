@@ -82,6 +82,12 @@ final class LumaBridge {
         RemoteSetup.stop();
     }
 
+    /** Sets the problem report that a phone can open next to the setup page. */
+    @JavascriptInterface
+    public void setReport(String text) {
+        RemoteSetup.report = text == null ? "" : text;
+    }
+
     /** A QR code for this text, as an SVG picture. */
     @JavascriptInterface
     public String qr(String text) {
@@ -164,6 +170,69 @@ final class LumaBridge {
         }
     }
 
+    /** Copies a recording into the shared Movies/Luma folder so it shows up in the gallery. */
+    @JavascriptInterface
+    public boolean exportRecording(String path) {
+        try {
+            File f = new File(path);
+            File dir = Recorder.dir(activity);
+            if (!f.getCanonicalPath().startsWith(dir.getCanonicalPath() + File.separator)) return false;
+            android.content.ContentValues v = new android.content.ContentValues();
+            v.put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, f.getName());
+            v.put(android.provider.MediaStore.Video.Media.MIME_TYPE, "video/mp2t");
+            v.put(android.provider.MediaStore.Video.Media.RELATIVE_PATH, "Movies/Luma");
+            android.net.Uri u = activity.getContentResolver().insert(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, v);
+            if (u == null) return false;
+            try (java.io.InputStream in = new java.io.FileInputStream(f);
+                 java.io.OutputStream out = activity.getContentResolver().openOutputStream(u)) {
+                byte[] b = new byte[65536];
+                int n;
+                while ((n = in.read(b)) > 0) out.write(b, 0, n);
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @JavascriptInterface
+    public String errorLog() {
+        return ErrLog.get(activity);
+    }
+
+    @JavascriptInterface
+    public void clearErrorLog() {
+        ErrLog.clear(activity);
+    }
+
+    /** Bytes used by recordings, the timeshift buffer and other cache. */
+    @JavascriptInterface
+    public String storage() {
+        long rec = 0;
+        File[] fs = Recorder.dir(activity).listFiles();
+        if (fs != null) for (File f : fs) rec += f.length();
+        long shift = new File(activity.getCacheDir(), "timeshift.ts").length();
+        long cache = 0;
+        File[] cs = activity.getCacheDir().listFiles();
+        if (cs != null) for (File f : cs) if (f.isFile()) cache += f.length();
+        return "{\"rec\":" + rec + ",\"shift\":" + shift + ",\"cache\":" + Math.max(0, cache - shift) + "}";
+    }
+
+    @JavascriptInterface
+    public boolean clearTimeshift() {
+        return new File(activity.getCacheDir(), "timeshift.ts").delete();
+    }
+
+    /** Keeps only the newest `keep` backup files that start with `prefix`. */
+    @JavascriptInterface
+    public void pruneBackups(String prefix, int keep) {
+        File d = new File(appDir(), "backup");
+        File[] fs = d.listFiles((dir, n) -> n.startsWith(prefix));
+        if (fs == null || fs.length <= keep) return;
+        java.util.Arrays.sort(fs, (a, b) -> a.getName().compareTo(b.getName()));
+        for (int i = 0; i < fs.length - keep; i++) fs[i].delete();
+    }
+
     private File appDir() {
         return activity.getExternalFilesDir(null);
     }
@@ -186,6 +255,28 @@ final class LumaBridge {
     @JavascriptInterface
     public String backupPath() {
         return new File(new File(appDir(), "backup"), "luma-backup.json").getAbsolutePath();
+    }
+
+    /** The saved back-ups, newest first: [{name, path, time}]. */
+    @JavascriptInterface
+    public String backups() {
+        JSONArray out = new JSONArray();
+        try {
+            File[] fs = new File(appDir(), "backup").listFiles((d, n) -> n.endsWith(".json"));
+            if (fs != null) {
+                java.util.Arrays.sort(fs, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+                for (File f : fs) {
+                    JSONObject o = new JSONObject();
+                    o.put("name", f.getName());
+                    o.put("path", f.getAbsolutePath());
+                    o.put("time", f.lastModified());
+                    out.put(o);
+                }
+            }
+        } catch (Exception ignored) {
+            // empty list
+        }
+        return out.toString();
     }
 
     /** Reads a text file, only from inside the app's own folder. */

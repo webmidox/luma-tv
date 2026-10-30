@@ -22,6 +22,9 @@ import java.util.Map;
  * form of a new source and hands it to the app; nothing else is served. Plain Java so it can be tested alone.
  */
 final class RemoteSetup {
+    /** Text shown at /<token>/rapport so a phone can read and copy it. */
+    static volatile String report = "";
+
     interface Listener {
         /** A source arrived from the phone, as a JSON object. */
         void onSource(String json);
@@ -101,6 +104,10 @@ final class RemoteSetup {
             String path = p[1];
             int q = path.indexOf('?');
             if (q >= 0) path = path.substring(0, q);
+            if (p[0].equals("GET") && path.equals("/" + token + "/rapport")) {
+                respond(out, 200, report, "text/plain; charset=utf-8");
+                return;
+            }
             if (!path.equals("/" + token)) {
                 respond(out, 404, "Niet gevonden", "text/plain; charset=utf-8");
                 return;

@@ -17,6 +17,8 @@
     const mem = {};
     storage = { getItem: function (k) { return mem[k] || null; }, setItem: function (k, v) { mem[k] = v; } };
   }
+  let storeCorrupt = false;
+  try { const rawStore = storage.getItem('luma.v1'); if (rawStore) JSON.parse(rawStore); } catch (e) { storeCorrupt = true; }
   const store = window.LumaStore.createStore(storage);
   const native = window.LumaNative || null;
 
@@ -30,16 +32,38 @@
 
   const PAGE = 48;
   const PCOL = ['#ff8a1f', '#4d8dff', '#2fd08a', '#ff4f9a', '#9b7bff', '#ff4d4d', '#27d3d3', '#e0b43a'];
-  const NAV = [['home', 'Voor jou'], ['live', 'Live TV'], ['radio', 'Radio'], ['guide', 'Gids'], ['vod', 'Films'], ['series', 'Series']];
+  const NAV = [['home', 'Voor jou'], ['live', 'Live TV'], ['radio', 'Radio'], ['guide', 'Gids'], ['sport', 'Sport'], ['vod', 'Films'], ['series', 'Series']];
   const ICONS = {
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'
   };
   const GPX = 0.9; // rem per minute in the guide
-  const VERSION_NOTES = ['Nieuwe startintro met laadscherm', 'Echte beelden: programma-afbeeldingen uit de gids en (optioneel) achtergronden via TMDB', 'Zendermenu (OK ingedrukt houden): favoriet, zapplijst, verbergen, eigen nummer en naam', 'Gids: genres in kleur, zoeken, dagen, vanavond, compacte rijen, tijdcorrectie', 'Speler: snelheid, beeldverhouding, ondertitels, audiotaal, slaaptimer, intro overslaan, volgende aflevering', 'Mijn lijst, gezien-vinkjes, kijkgeschiedenis, statistieken, radio en meer thema\'s'];
+  const RELEASES = [
+    ['0.35', ['Live TV: eigen fotoslideshow op de achtergrond (gedimd voor leesbaarheid), apart uit te zetten bij Uiterlijk']],
+    ['0.34', ['Voor jou: slideshow met 5 foto\'s (nieuwe Spider-Man, The Walking Dead en basketbal erbij)']],
+    ['0.33', ['Voor jou: fotoslideshow op de achtergrond, elke 10 seconden een andere foto (uit te zetten bij Instellingen, Uiterlijk)']],
+    ['0.32', ['Live tv: nieuwe infobalk in Ziggo-stijl met logo, NU-label met tijden, oranje voortgangsbalk, vorig en volgend programma', 'Bovenin "Speelt nu - Live TV" en de klok; de acties staan onder de balk na OK']],
+    ['0.31', ['Sport-hub: nieuwe Sport-tab met sporttegels, Nu live, aftrapkaarten en een programma per dag', 'Mijn teams en sporten: rij Jouw wedstrijden, melding 10 minuten voor de aftrap en een banner op Voor jou', 'Gemist en opnames van sport, uitgelichte wedstrijd en een eigen kleur per sport']],
+    ['0.30', ['Home: Live en straks met LIVE-label, ronde groepen en Alles bekijken bij elke rij', 'Gids: Nu / Straks-weergave naast het tijdrooster', 'Films en Series: uitgelichte kaarten bovenaan', 'Oranje pil in de navigatie en een profielscherm met grote focus']],
+    ['0.29', ['Foutrapport met QR-code: open het rapport op je telefoon en kopieer het', 'Herinnering om je app-sleutel te bewaren, release-script voor updates zonder Mac']],
+    ['0.28', ['Zelfcontrole bij het opstarten (beschadigde gegevens of ontbrekende onderdelen)', 'Wat is er nieuw toont alle versies sinds je laatste update', 'Testscript en meer automatische tests voor de ontwikkelaar']],
+    ['0.27', ['Nu iets goeds op tv, aankomende films op tv en film van de avond', 'Verras me met een zender en laatste zenders (Home lang indrukken)', 'Tekstgrootte, bronstatus op Home, acteurs bij een programma, twee keer OK = favoriet']],
+    ['0.26', ['Volgende zender rechtsonder tijdens zappen', 'Waar was ik gebleven bij series, herhalingen in de gids, sportzenders', 'Startscherm na 18:00, zachte kijkwaarschuwing, samen gekeken titels']],
+    ['0.25', ['Programma\'s zoeken in de gids', 'Opnames achter elkaar afspelen, zenderlijst exporteren', 'Intro automatisch overslaan per serie']],
+    ['0.24', ['Pauzeren bij live tv met Hervatten bij live, beeldformaat per zender', 'Dubbele zenders samenvoegen, back-up kiezen, ouderlijk log']],
+    ['0.23', ['Kijkgedrag per uur, sportalarm, zender die vastloopt herstelt zichzelf', 'Dubbele titels samenvoegen, opnemen met marge, kijktijd per profiel', 'Ondertitels later tonen']],
+    ['0.22', ['Groep afspelen en testen, stemming-zoeken, nieuwsrij', 'Proefcontrole bij een nieuwe bron, back-up per dag']],
+    ['0.21', ['Samen kijken, Gezien deze week, Nieuw toegevoegd', 'Rustige modus']],
+    ['0.20', ['Volgende aflevering, aftelscherm, taal per serie, volume per zender', 'Zenders en fouten, opslagoverzicht, nachtstand, snelmenu']],
+    ['0.19', ['Nachtmodus in standen, ondertitelkleur, radioscherm', 'Opnames bewaren in de galerij, leeftijdsgrens voor kinderen']],
+    ['0.17', ['Nieuwe startintro, echte beelden via TMDB, zendermenu, gids met genres', 'Speler: snelheid, beeldverhouding, ondertitels, slaaptimer, intro overslaan']]
+  ];
+  function versionKey(v) { return String(v).split('.').map(function (x) { return +x || 0; }); }
+  function newerThan(a, b) { const x = versionKey(a), y = versionKey(b); for (let k = 0; k < 3; k++) { if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) > (y[k] || 0); } return false; }
   const GNAME = 36; // rem, width of the channel column in the guide
 
   const state = {
+    corrupt: storeCorrupt,
     view: 'home', lib: null, epg: null, source: null, loading: '', error: '',
     group: { live: '', vod: '', series: '', guide: '', radio: '' }, shown: {}, show: null, form: { type: 'm3u' }, playMeta: {},
     query: '', setTab: 'profiles', unlocked: false, rev: 0, cache: {}, remote: null, booted: false, remoteError: '',
@@ -189,6 +213,23 @@
       if (store.isHidden(g0) || lockedNow(g0)) return false;
       return kind !== 'live' || !store.chan(it.id).hide;
     });
+    if (kind === 'vod' && store.ui('dedupe', 'off') === 'on') {
+      const seen = {};
+      list = list.filter(function (it) {
+        const k = META.keyOf('vod', it.name);
+        if (!seen[k]) { seen[k] = it; it.alts = []; return true; }
+        seen[k].alts.push(it);
+        return false;
+      });
+    }
+    if (kind === 'live' && store.ui('dedupelive', 'off') === 'on') {
+      const best = {};
+      list.forEach(function (c2) {
+        const k = baseName(c2.name0 || c2.name);
+        if (k && (!best[k] || quality(c2.name0 || c2.name) > quality(best[k].name0 || best[k].name))) best[k] = c2;
+      });
+      list = list.filter(function (c2) { const k = baseName(c2.name0 || c2.name); return !k || best[k] === c2; });
+    }
     if (kind === 'live') {
       list.forEach(function (c2) {
         const o = store.chan(c2.id);
@@ -267,6 +308,7 @@
     const a = h('div', { class: 'art' + (o.photo ? ' photo' : ''), style: { backgroundImage: bg } }, img ? [] : [h('span', { class: 'ini', text: (o.title || '?').trim().slice(0, 2).toUpperCase() })]);
     if (o.photo && o.logo) a.appendChild(h('div', { class: 'chlogo', style: { backgroundImage: art(o.logo) } }));
     if (o.progress != null) a.appendChild(h('div', { class: 'bar' }, [h('i', { style: { width: Math.round(Math.min(1, o.progress) * 100) + '%' } })]));
+    if (o.livebadge) a.appendChild(h('div', { class: 'livebadge', text: 'LIVE' }));
     const badge = o.badge || (o.fav ? '★' : '');
     if (badge) a.appendChild(h('div', { class: 'badge', text: badge }));
     const meta = [h('div', { class: 't', text: o.title })];
@@ -276,6 +318,49 @@
     if (o.lp) b._lp = o.lp;
     return b;
   }
+
+  // ---------- slideshows ----------
+  /** Photos behind a screen, per screen. Add files to img/slides and list them here. */
+  const SLIDESETS = {
+    home: ['img/slides/s1.jpg', 'img/slides/s2.jpg', 'img/slides/s3.jpg', 'img/slides/s4.jpg', 'img/slides/s5.jpg'],
+    live: ['img/slides/t1.jpg', 'img/slides/t2.jpg', 'img/slides/t3.jpg', 'img/slides/t4.jpg', 'img/slides/t5.jpg']
+  };
+  const SLIDE_MS = 10000;
+  let slideSet = '';
+  let slideIdx = -1;
+  let slideTop = 0;
+
+  function slideShow(i) {
+    const box = $('slides');
+    const list = SLIDESETS[slideSet];
+    if (!box || !list) return;
+    if (!box.firstChild) { box.appendChild(h('div', { class: 'sl' })); box.appendChild(h('div', { class: 'sl' })); }
+    slideTop = 1 - slideTop;
+    const layers = box.children;
+    layers[slideTop].style.backgroundImage = 'url("' + list[i] + '")';
+    layers[slideTop].classList.add('show');
+    layers[1 - slideTop].classList.remove('show');
+    slideIdx = i;
+    try { const nx = new Image(); nx.src = list[(i + 1) % list.length]; } catch (e) { /* preloading is optional */ }
+  }
+
+  /** Shows the slideshow of the current screen (Voor jou, Live TV); other screens keep the calm colour wash. */
+  function syncSlides() {
+    const box = $('slides');
+    if (!box) return;
+    const key = state.view === 'home' && !state.show ? 'home' : state.view === 'live' && !state.show ? 'live' : '';
+    const want = !!key && !!state.lib && on('homeslides') && on('slides_' + key) && SLIDESETS[key].length > 0;
+    box.classList.toggle('on', want);
+    box.classList.toggle('dim', key === 'live');
+    if (want && slideSet !== key) { slideSet = key; slideIdx = -1; slideShow(0); }
+    else if (want && slideIdx < 0) slideShow(0);
+  }
+  setInterval(function () {
+    const box = $('slides');
+    const list = SLIDESETS[slideSet];
+    if (!box || !list || !box.classList.contains('on') || list.length < 2 || document.hidden) return;
+    slideShow((slideIdx + 1) % list.length);
+  }, SLIDE_MS);
 
   /** Puts the focused tile's colours and text behind the screen. The background is always a calm colour wash, never a picture. */
   function setHero(info) {
@@ -405,8 +490,9 @@
     metaFor(info.mkind, info.name, apply);
   }
 
-  function shelf(title, cards) {
-    return h('section', { class: 'shelf' }, [h('h2', { text: title }), h('div', { class: 'rail' }, cards)]);
+  function shelf(title, cards, more) {
+    const head = more ? h('div', { class: 'shh' }, [h('h2', { text: title }), h('button', { class: 'allbtn', type: 'button', onclick: more }, ['Alles bekijken'])]) : h('h2', { text: title });
+    return h('section', { class: 'shelf' }, [head, h('div', { class: 'rail' }, cards)]);
   }
 
   function row(opts) {
@@ -572,6 +658,7 @@
     state.loadMs = Date.now() - t0;
     state.source = src;
     state.lib = lib;
+    state.loadedAt = Date.now();
     state.epg = null;
     state.loading = '';
     bump();
@@ -645,17 +732,42 @@
     return nn.now ? { line: nn.now.title + ' op ' + item.name, start: nn.now.start, end: nn.now.stop } : null;
   }
 
+  /** Programmes of a channel from the one that just ended (for the 'previous' tile) up to n more. */
   function progsFor(c, n, desc) {
     if (!state.epg) return [];
     const now = Date.now();
-    return state.epg.forChannel(c).filter(function (p) { return p.stop > now; }).slice(0, n || 4).map(function (p, i) {
-      return [p.start, p.stop, p.title, i === 0 && desc !== false ? (p.desc || '').slice(0, 280) : ''];
+    const all = state.epg.forChannel(c);
+    let k = -1;
+    for (let i = 0; i < all.length; i++) if (all[i].stop > now) { k = i; break; }
+    if (k < 0) return [];
+    const from = Math.max(0, k - 1);
+    return all.slice(from, k + (n || 4)).map(function (p, i) {
+      return [p.start, p.stop, p.title, from + i === k && desc !== false ? (p.desc || '').slice(0, 280) : ''];
     });
+  }
+
+  function hoursMap() { try { return JSON.parse(store.ui('hrs', '{}')); } catch (e) { return {}; } }
+  function noteHour(id) {
+    const m = hoursMap();
+    const a = m[id] || (m[id] = new Array(24).fill(0));
+    a[new Date().getHours()]++;
+    const keys = Object.keys(m);
+    if (keys.length > 250) {
+      keys.sort(function (x, y) { return m[x].reduce(function (s2, v) { return s2 + v; }, 0) - m[y].reduce(function (s2, v) { return s2 + v; }, 0); }).slice(0, keys.length - 250).forEach(function (k) { delete m[k]; });
+    }
+    store.setUi('hrs', JSON.stringify(m));
+  }
+  function hourScore(id) {
+    const a = hoursMap()[id];
+    if (!a) return 0;
+    const h0 = new Date().getHours();
+    return a[h0] * 2 + a[(h0 + 23) % 24] + a[(h0 + 1) % 24];
   }
 
   function play(list, index, opts) {
     opts = opts || {};
     const live = list[index].kind === 'live';
+    if (live) noteHour(list[index].id);
     // Thousands of channels would make the payload tens of MB and freeze the page: send a window around the chosen one.
     const WIN = 500;
     if (live && list.length > WIN) {
@@ -667,12 +779,12 @@
       live: live, position: opts.position || 0, ua: (state.source && state.source.ua) || '', index: index,
       accent: accent(), seekBack: +store.ui('seekBack', '10') * 1000, seekFwd: +store.ui('seekFwd', '30') * 1000,
       overlayMs: +store.ui('overlay', '5') * 1000,
-      subScale: +store.ui('subsize', '1'), tsAuto: store.ui('tsauto', 'off') === 'on', recMin: +store.ui('recmin', '60'), alang: store.ui('alang', ''), slang: store.ui('slang', 'off'), maxH: +store.ui('maxh', '0'), autoNext: on('autonext'), skipMs: +store.ui('skipsecs', '85') * 1000,
+      subScale: +store.ui('subsize', '1'), nightFrom: nightRange() ? nightRange()[0] : -1, nightTo: nightRange() ? nightRange()[1] : -1, subColor: store.ui('subcolor', 'wit'), autoIntro: store.ui('autointro', 'off') === 'on', tsAuto: store.ui('tsauto', 'off') === 'on', recMin: +store.ui('recmin', '60'), alang: store.ui('alang', ''), slang: store.ui('slang', 'off'), maxH: +store.ui('maxh', '0'), autoNext: on('autonext'), skipMs: +store.ui('skipsecs', '85') * 1000,
       favs: store.favs(), recent: store.recent().slice(0, 6),
       list: list.map(function (it, k) {
         state.playMeta[it.id] = it.meta || it;
-        const o = { id: it.id, title: it.title || it.name, url: it.url };
-        if (live) { if (state.lib && on('backup')) o.alt = altUrls(it); o.logo = it.logo || ''; o.num = it.no || 0; o.group = it.group || ''; o.p = k === index ? progsFor(it, 4) : progsFor(it, 1, false); }
+        const o = { id: it.id, title: it.title || it.name, url: it.url, showId: it.showId || '' };
+        if (live) { if (state.lib && on('backup')) o.alt = altUrls(it); o.logo = it.logo || ''; o.num = it.no || 0; o.group = it.group || ''; o.p = k === index ? progsFor(it, 4) : progsFor(it, 2, false); }
         return o;
       })
     };
@@ -720,6 +832,8 @@
     render(true);
   };
 
+  window.lumaSearch = function () { if (modalOpen()) closeModal(); go('search'); };
+  window.lumaGo = function (v) { if (modalOpen()) closeModal(); go(v); };
   window.lumaBack = function () {
     if (modalOpen()) { closeModal(); return true; }
     if (state.show) { state.show = null; render(); return true; }
@@ -728,7 +842,36 @@
     return false;
   };
 
+  const CERT = { AL: 0, G: 0, '0': 0, '6': 6, '9': 9, '12': 12, PG: 10, '14': 14, 'PG-13': 13, '16': 16, R: 17, '18': 18, 'NC-17': 18 };
+  async function certAge(m) {
+    const key = store.pref('tmdb');
+    if (!key) return null;
+    const info = await META.lookup('movie', m.name, key, store.pref('tmdblang') || 'nl-NL', function (u) { return fetchJson(u, 86400); });
+    if (!info || !info.id) return null;
+    const j = await fetchJson('https://api.themoviedb.org/3/movie/' + info.id + '/release_dates?api_key=' + encodeURIComponent(key), 86400);
+    const res = (j && j.results) || [];
+    const pickC = function (cc) { const r = res.filter(function (x) { return x.iso_3166_1 === cc; })[0]; const c = r && r.release_dates.map(function (d) { return d.certification; }).filter(Boolean)[0]; return c; };
+    const c = pickC('NL') || pickC('US') || pickC('GB');
+    return c && CERT[c] !== undefined ? CERT[c] : null;
+  }
+
   function playMovie(m) {
+    if (m.alts && m.alts.length && !m._picked) {
+      const opts = [[m.id, m.name]].concat(m.alts.map(function (a) { return [a.id, a.name]; }));
+      return pickList('Kies een versie', opts, '', function (v) {
+        const chosen = v === m.id ? m : m.alts.filter(function (a) { return a.id === v; })[0];
+        playMovie(Object.assign({}, chosen, { alts: null, _picked: true }));
+      });
+    }
+    const max = store.profile().kid ? store.profile().maxAge || 0 : 0;
+    if (max && m.kind !== 'series') {
+      toast('Leeftijd controleren…');
+      return certAge(m).then(function (a) { if (a !== null && a > max) toast('Niet geschikt: vanaf ' + a + ' jaar'); else playMovieNow(m); }, function () { playMovieNow(m); });
+    }
+    playMovieNow(m);
+  }
+
+  function playMovieNow(m) {
     const p = store.getProgress(m.id);
     play([Object.assign({ title: m.name }, m)], 0, { position: p && p.pos > 20000 && p.pos < 0.95 * (p.dur || Infinity) ? p.pos - 5000 : 0 });
   }
@@ -805,11 +948,11 @@
   }
 
   function remindersTick() {
-    const due = store.dueReminders(Date.now(), 60000);
+    const due = store.dueReminders(Date.now(), 60000, +store.ui('recpre', '0') * 60000);
     due.forEach(function (r) {
       if (r.rec) {
         const ch = vis('live').filter(function (c) { return c.id === r.chId; })[0];
-        if (ch) { toast('● Opname van ' + r.title + ' gestart: het programma begint over een minuut'); startRecording(ch, r.title, Math.max(5, Math.round(((r.end || r.start + 3600000) - Date.now()) / 60000) + 1)); return; }
+        if (ch) { toast('● Opname van ' + r.title + ' gestart: het programma begint over een minuut'); startRecording(ch, r.title, Math.max(5, Math.round(((r.end || r.start + 3600000) - Date.now()) / 60000) + 1 + +store.ui('recpost', '0'))); return; }
       }
       chime();
       if (modalOpen()) { toast('Zo begint: ' + r.title + ' op ' + r.chName); return; }
@@ -817,7 +960,7 @@
         h('h2', { text: 'Zo begint ' + r.title }),
         h('div', { class: 'sub', text: r.chName + ' · ' + U.clock(r.start) }),
         h('div', { class: 'btns' }, [
-          btn('Kijken', function () {
+          btn('Nu kijken', function () {
             closeModal();
             const list = vis('live');
             const i = list.findIndex(function (c) { return c.id === r.chId; });
@@ -885,7 +1028,8 @@
   }
 
   function showCard(s) {
-    return card({ kind: 'series', title: s.name, sub: s.group, logo: s.logo, tag: 'SERIE', desc: s.plot || '', badge: itemBadge(s.id), metaKind: 'series', metaName: s.name,
+    const seenN = s.episodes && s.episodes.length ? s.episodes.filter(function (e) { return store.isWatched(e.id); }).length : 0;
+    return card({ kind: 'series', title: s.name, sub: seenN ? seenN + ' van ' + s.episodes.length + ' gezien' : s.group, logo: s.logo, tag: 'SERIE', desc: s.plot || '', badge: itemBadge(s.id), metaKind: 'series', metaName: s.name,
       hint: 'OK = openen · OK ingedrukt houden = menu', onclick: function () { openShow(s); }, lp: function () { titleMenu(s); } });
   }
 
@@ -903,6 +1047,7 @@
       ['num', 'Zendernummer wijzigen (nu ' + c.no + ')'],
       ['name', 'Naam wijzigen'],
       ['move', '↕ Verplaatsen met de pijltjes'],
+      ['sport', o.sport ? 'Niet meer als sportzender markeren' : '⚽ Markeren als sportzender'],
       ['folder', 'In een eigen map zetten' + (o.folder ? ' (nu ' + o.folder + ')' : '')],
       ['logo', 'Eigen logo (link naar een plaatje)'],
       ['epg', 'Gidszender koppelen' + (o.epgId ? ' (nu ' + o.epgId + ')' : '')],
@@ -930,15 +1075,49 @@
       });
       if (v === 'folder') return textDialog('Map voor ' + c.name + ' (leeg laten = terugzetten)', o.folder || '', function (t) { store.setChan(c.id, { folder: t }); bump(); render(true); });
       if (v === 'logo') return textDialog('Link naar logo (leeg laten = terugzetten)', o.logo || '', function (t) { store.setChan(c.id, { logo: t }); bump(); render(true); });
+      if (v === 'sport') { store.setChan(c.id, { sport: !o.sport }); bump(); return render(true); }
       if (v === 'reset') { store.setChan(c.id, { num: '', name: '', folder: '', logo: '', epgId: '' }); bump(); return render(true); }
       if (v === 'num') textDialog('Zendernummer voor ' + c.name, String(c.no), function (t) { const n = parseInt(t, 10); if (n > 0) { store.setChan(c.id, { num: n }); bump(); render(true); } });
       if (v === 'name') textDialog('Nieuwe naam', c.name, function (t) { store.setChan(c.id, { name: t === c.name0 ? '' : t }); bump(); render(true); });
     });
   }
 
+  function sharedList() { try { return JSON.parse(store.pref('shared') || '[]'); } catch (e) { return []; } }
+  function sharedHas(id) { return sharedList().some(function (x) { return x.id === id; }); }
+  function sharedToggle(it) {
+    const l = sharedList();
+    const i = l.findIndex(function (x) { return x.id === it.id; });
+    if (i >= 0) l.splice(i, 1);
+    else l.push({ id: it.id, kind: it.kind, name: it.name });
+    store.setPref('shared', JSON.stringify(l));
+    return i < 0;
+  }
+
+  /** Titles that appeared in the source since yesterday; compared once per day. */
+  function newTitles() {
+    if (!state.lib || !state.source) return [];
+    const base = 'luma.seen.' + (state.source.id || 'x');
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const all = state.lib.vod.concat(state.lib.series);
+      const seenRaw = localStorage.getItem(base);
+      if (!seenRaw) { localStorage.setItem(base, JSON.stringify({ day: today, ids: all.map(function (x) { return x.id; }), fresh: [] })); return []; }
+      const seen = JSON.parse(seenRaw);
+      if (seen.day !== today) {
+        const had = {};
+        seen.ids.forEach(function (i) { had[i] = 1; });
+        const fresh = all.filter(function (x) { return !had[x.id]; }).slice(0, 40).map(function (x) { return x.id; });
+        localStorage.setItem(base, JSON.stringify({ day: today, ids: all.map(function (x) { return x.id; }), fresh: fresh }));
+        return fresh;
+      }
+      return seen.fresh || [];
+    } catch (e) { return []; }
+  }
+
   function titleMenu(it) {
     const items = [
       ['list', store.inList(it.id) ? '♥ Uit Mijn lijst halen' : '♡ Toevoegen aan Mijn lijst'],
+      ['shared', sharedHas(it.id) ? 'Uit Samen kijken halen' : '👥 Toevoegen aan Samen kijken'],
       ['seen', store.isWatched(it.id) ? 'Markeren als niet gezien' : '✓ Markeren als gezien']
     ];
     if (store.getProgress(it.id)) items.push(['clear', 'Uit Verder kijken halen']);
@@ -951,6 +1130,7 @@
       if (v === 'cast') return showCast(it);
       if (v === 'more') { state.group[it.kind === 'series' ? 'series' : 'vod'] = it.group; state.shown = {}; return go(it.kind === 'series' ? 'series' : 'vod'); }
       if (v === 'list') toast(store.toggleList({ id: it.id, kind: it.kind, name: it.name, logo: it.logo, group: it.group }) ? '♥ Toegevoegd aan Mijn lijst' : 'Uit Mijn lijst gehaald');
+      if (v === 'shared') toast(sharedToggle(it) ? '👥 Toegevoegd aan Samen kijken' : 'Uit Samen kijken gehaald');
       if (v === 'seen') store.toggleWatched(it.id);
       if (v === 'clear') store.removeProgress(it.id);
       bump();
@@ -991,6 +1171,83 @@
     return entries.map(function (e) { return byId[e.id]; }).filter(Boolean);
   }
 
+  /** For every series you were watching: the first episode after the last one you finished. */
+  function nextUps() {
+    if (!state.lib) return [];
+    const out = [];
+    const seen = {};
+    store.historyList(60).forEach(function (e) {
+      if (e.kind !== 'series' || !e.showId || seen[e.showId]) return;
+      seen[e.showId] = 1;
+      const show = state.lib.series.find(function (s) { return s.id === e.showId; });
+      if (!show || !show.episodes) return;
+      const i = show.episodes.findIndex(function (x) { return x.id === e.id; });
+      if (i < 0 || i + 1 >= show.episodes.length) return;
+      const finished = store.isWatched(e.id) || (e.dur > 0 && e.pos / e.dur >= 0.95);
+      if (!finished) return;
+      out.push({ show: show, ep: show.episodes[i + 1], idx: i + 1 });
+    });
+    return out.slice(0, 12);
+  }
+
+  /** Channels showing a film right now with a good TMDB rating (looked up in the background). */
+  function goodNow() {
+    const key = store.pref('tmdb');
+    if (!key || !state.epg || !state.epg.size || !state.lib) return [];
+    const now = Date.now();
+    if (!state.good || now - state.good.at > 20 * 60000) {
+      const keep = state.good;
+      state.good = { at: now, list: keep ? keep.list : [] };
+      const cand = [];
+      const chans = vis('live');
+      for (let i = 0; i < chans.length && i < 3000 && cand.length < 12; i++) {
+        const pr = state.epg.forChannel(chans[i]).filter(function (p) { return p.start <= now && p.stop > now && p.cat && catOf(p.cat) === 'Film'; })[0];
+        if (pr) cand.push({ c: chans[i], p: pr });
+      }
+      Promise.all(cand.map(function (g) { return metaAsync('vod', g.p.title).then(function (m) { g.rating = m && m.rating ? m.rating : 0; return g; }); })).then(function (all) {
+        state.good.list = all.filter(function (g) { return g.rating >= 6.5; }).sort(function (x, y) { return y.rating - x.rating; }).slice(0, 10);
+        if (state.view === 'home' && state.good.list.length) render(true);
+      });
+    }
+    return state.good.list;
+  }
+
+  /** Films in the guide for the next three days. */
+  function upcomingFilms() {
+    if (!state.epg || !state.epg.size || !state.lib) return [];
+    const now = Date.now();
+    if (state.tvf && now - state.tvf.at < 300000) return state.tvf.list;
+    const out = [];
+    const chans = vis('live');
+    for (let i = 0; i < chans.length && i < 3000 && out.length < 40; i++) {
+      state.epg.forChannel(chans[i]).forEach(function (p) {
+        if (p.start > now && p.start < now + 3 * 86400000 && p.cat && catOf(p.cat) === 'Film' && p.stop - p.start > 70 * 60000) out.push({ c: chans[i], p: p });
+      });
+    }
+    out.sort(function (x, y) { return x.p.start - y.p.start; });
+    state.tvf = { at: now, list: out.slice(0, 15) };
+    return state.tvf.list;
+  }
+
+  /** One suggestion a day from My list (films only). */
+  function eveningMovie() {
+    const mine = lookupItems(store.listItems()).filter(function (it) { return it.kind !== 'series' && !store.isWatched(it.id); });
+    if (!mine.length) return null;
+    return mine[U.hash(new Date().toISOString().slice(0, 10)) % mine.length];
+  }
+
+  /** Picks a channel with something on that you often watch around now. */
+  function surprise() {
+    const list = vis('live');
+    let pool = list.filter(function (c) { return hourScore(c.id) > 0; });
+    if (!pool.length) pool = list.filter(function (c) { return store.isFav(c.id); });
+    if (!pool.length) pool = list;
+    if (!pool.length) return toast('Geen zenders gevonden');
+    const c = pool[Math.floor(Math.random() * pool.length)];
+    toast('Verrassing: ' + c.name);
+    play(list, list.indexOf(c));
+  }
+
   function vHome() {
     const root = h('div');
     if (!state.lib) {
@@ -1000,13 +1257,49 @@
     }
     root.appendChild(heroBlock());
     if (state.update) root.appendChild(h('div', { class: 'upd' }, [btn('⬆ Update ' + state.update + ' beschikbaar: nu installeren', function () { state.setTab = 'updates'; go('settings'); }, 'btn sec')]));
+    const sb = sportBanner();
+    if (sb) root.appendChild(sb);
     const first = [];
     const live = vis('live');
     const rows = [];
-    const add = function (key, title, cards) {
+    const add = function (key, title, cards, more) {
       if (!cards.length || !on('row_' + key)) return;
-      rows.push({ key: key, title: title, cards: cards });
+      rows.push({ key: key, title: title, cards: cards, more: more });
     };
+    const goTo = function (view, grp) { return function () { if (grp !== undefined) state.group[view] = grp; state.shown = {}; go(view); }; };
+
+    const lnList = [];
+    store.favs().forEach(function (id) { const c = live.filter(function (x) { return x.id === id; })[0]; if (c && lnList.indexOf(c) < 0) lnList.push(c); });
+    store.recent().forEach(function (id) { const c = live.filter(function (x) { return x.id === id; })[0]; if (c && lnList.indexOf(c) < 0) lnList.push(c); });
+    if (lnList.length < 8) live.forEach(function (c) { if (lnList.length < 12 && lnList.indexOf(c) < 0 && state.epg && state.epg.size && state.epg.forChannel(c).length) lnList.push(c); });
+    add('livenow', 'Live en straks', lnList.slice(0, 12).filter(function (c) { return nowInfo(c).now; }).map(function (c) {
+      const el = liveCard(c, lnList, lnList.indexOf(c));
+      const nn = nowInfo(c);
+      el.firstChild.appendChild(h('div', { class: 'livebadge', text: 'LIVE' }));
+      const sub = el.querySelector('.s');
+      if (sub) sub.textContent = nn.now.title + (nn.next ? ' · straks ' + U.clock(nn.next.start) + ' ' + nn.next.title : '');
+      return el;
+    }), goTo('live', ''));
+    {
+      const now0 = Date.now();
+      const sl = sportList().filter(function (e) { return e.p.stop > now0; });
+      add('mymatches', 'Jouw wedstrijden', sl.filter(isMine).slice(0, 10).map(function (e) { return matchCard(e, 'h'); }), goTo('sport'));
+      add('sportlive', 'Sport live', sl.filter(function (e) { return e.p.start <= now0; }).slice(0, 10).map(function (e) { return matchCard(e, 'hl'); }), goTo('sport'));
+    }
+    const grp = groupsOf(live).slice(0, 12);
+    if (grp.length > 1) {
+      const tiles = [['__vod', 'Films'], ['__series', 'Series']].concat(grp.map(function (g) { return [g, g]; })).map(function (g) {
+        const first2 = g[0].indexOf('__') === 0 ? null : live.filter(function (c) { return c.group === g[0]; })[0];
+        const b = h('button', { class: 'rnd', type: 'button', onclick: function () {
+          if (g[0] === '__vod') return goTo('vod', '')();
+          if (g[0] === '__series') return goTo('series', '')();
+          goTo('live', g[0])();
+        } }, [h('div', { class: 'rc', style: { backgroundImage: first2 && first2.logo ? art(first2.logo) + ',' + tint(g[1]) : tint(g[1]) } }, first2 && first2.logo ? [] : [h('span', { text: g[1].trim().slice(0, 2).toUpperCase() })]), h('div', { class: 'rl', text: g[1] })]);
+        b._info = { title: g[1], sub: '', desc: '', logo: '', photo: '', backdrop: '', kind: 'live', tag: 'GROEP', key: g[1], hint: 'OK = openen', name: g[1] };
+        return b;
+      });
+      add('groups', 'Groepen', tiles);
+    }
 
     const cont = store.continueList(12);
     add('cont', 'Verder kijken', cont.map(function (p) {
@@ -1017,21 +1310,64 @@
       });
     }));
 
+    const dow = new Date().getDay();
+    if (dow === 1 || dow === 2) {
+      const wk2 = store.statsFor(7);
+      if (wk2.total > 600000) {
+        const tt = wk2.top[0];
+        add('weekly', 'Jouw week', [card({ kind: 'series', wide: true, title: (wk2.total / 3600000).toFixed(1) + ' uur gekeken', tag: 'SAMENVATTING', sub: tt ? 'Meest bekeken: ' + tt[0] : '', onclick: function () { state.sub = 'year'; state.setTab = 'maint'; go('settings'); } })]);
+      }
+    }
+    add('next', 'Volgende aflevering', nextUps().map(function (n) {
+      return card({
+        kind: 'series', wide: true, title: n.show.name, logo: n.show.logo, tag: 'VOLGENDE',
+        sub: 'S' + U.pad(n.ep.s) + 'E' + U.pad(n.ep.e) + (n.ep.title ? ' · ' + n.ep.title : ''), onclick: function () { playEpisode(n.show, n.idx, 0); }
+      });
+    }));
+
     const byId = {};
     live.forEach(function (c) { byId[c.id] = c; });
     const favs = store.favs().map(function (id) { return byId[id]; }).filter(Boolean);
-    add('fav', 'Mijn favoriete zenders', favs.slice(0, 20).map(function (c) { return liveCard(c, favs, favs.indexOf(c)); }));
+    const hr = new Date().getHours();
+    const pref = hr < 11 ? /nieuws|news|ochtend/i : hr >= 19 ? /film|movie|cinema/i : null;
+    if (pref && store.ui('favtime', 'on') === 'on') favs.sort(function (a, b) { return (pref.test(b.group || '') ? 1 : 0) - (pref.test(a.group || '') ? 1 : 0); });
+    add('fav', 'Mijn favoriete zenders', favs.slice(0, 20).map(function (c) { return liveCard(c, favs, favs.indexOf(c)); }), goTo('live', '__fav'));
 
     let chans = store.recent().map(function (id) { return byId[id]; }).filter(Boolean);
+    chans.sort(function (a, b) { return hourScore(b.id) - hourScore(a.id); });
     if (state.epg && state.epg.size) {
       live.forEach(function (c) { if (chans.length < 16 && chans.indexOf(c) < 0 && state.epg.forChannel(c).length) chans.push(c); });
     }
     if (!chans.length) chans = live.slice(0, 16);
     chans = chans.slice(0, 16);
-    add('live', 'Nu op tv', chans.map(function (c) { return liveCard(c, live, live.indexOf(c)); }));
+    add('live', 'Nu op tv', chans.map(function (c) { return liveCard(c, live, live.indexOf(c)); }), goTo('live', ''));
 
     const mine = lookupItems(store.listItems());
-    add('list', 'Mijn lijst', mine.map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
+    add('list', 'Mijn lijst', mine.map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }), goTo('vod', '__list'));
+
+    add('news', 'Nieuws', (state.news || []).slice(0, 12).map(function (n) {
+      return card({ kind: 'series', wide: true, title: n.title, tag: 'NIEUWS', sub: n.src, onclick: function () { openModal(h('div', { class: 'dlg' }, [h('h2', { text: n.title }), h('div', { class: 'sub', text: n.desc || '' }), h('div', { class: 'btns' }, [btn('Sluiten', closeModal)])])); } });
+    }));
+    if (store.profiles().length > 1) add('both', 'Omdat jullie dit samen keken', lookupItems(store.overlap().map(function (id) { return { id: id }; })).slice(0, 16).map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
+    if (state.lib && store.ui('row_status', 'on') !== 'off') {
+      root.insertBefore(h('div', { class: 'srcst', text: (state.error ? '● Bron reageert niet' : '● Bron in orde') + (state.loadedAt ? ' · bijgewerkt ' + U.clock(state.loadedAt) : '') + (state.loadMs ? ' · geladen in ' + Math.round(state.loadMs / 100) / 10 + ' s' : '') , style: { color: state.error ? '#ff453a' : '#30d158' } }), root.firstChild.nextSibling);
+    }
+    add('good', 'Nu iets goeds op tv', goodNow().map(function (g) { return card({ kind: 'live', wide: true, title: g.p.title, logo: g.c.logo, tag: '★ ' + g.rating, sub: g.c.name, onclick: function () { const l = vis('live'); play(l, l.indexOf(g.c)); } }); }));
+    add('tvfilms', 'Aankomende films op tv', upcomingFilms().map(function (g) { return card({ kind: 'live', wide: true, title: g.p.title, logo: g.c.logo, tag: 'FILM', sub: g.c.name + ' · ' + new Date(g.p.start).toLocaleString('nl-NL', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), onclick: function () { progMenu(g.c, g.p, g.p.start <= Date.now()); } }); }));
+    const evening = eveningMovie();
+    if (evening) add('evening', 'Film van de avond', [movieCard(evening)]);
+    add('shared', 'Samen kijken', lookupItems(sharedList()).map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
+    const weekAgo = Date.now() - 7 * 86400000;
+    const wk = {};
+    const weekIds = [];
+    store.historyList(80).forEach(function (e) {
+      if (!(e.ts > weekAgo)) return;
+      const id = e.kind === 'series' ? e.showId : e.id;
+      if (id && !wk[id]) { wk[id] = 1; weekIds.push({ id: id }); }
+    });
+    add('week', 'Gezien deze week', lookupItems(weekIds).map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
+    const fresh = newTitles();
+    add('fresh', 'Nieuw toegevoegd', lookupItems(fresh.map(function (id) { return { id: id }; })).map(function (it) { return it.kind === 'series' ? showCard(it) : movieCard(it); }));
 
     const hist = store.historyList(1)[0];
     if (hist) {
@@ -1042,11 +1378,11 @@
       }
     }
 
-    add('vod', 'Films', vis('vod').slice(0, 20).map(movieCard));
-    add('series', 'Series', vis('series').slice(0, 20).map(showCard));
+    add('vod', 'Films', vis('vod').slice(0, 20).map(movieCard), goTo('vod', ''));
+    add('series', 'Series', vis('series').slice(0, 20).map(showCard), goTo('series', ''));
     crows().forEach(function (r) {
       const items = vis(r.kind).filter(function (c) { return c.group === r.group; }).slice(0, 20);
-      add(r.key, r.name, r.kind === 'live' ? items.map(function (c, i) { return liveCard(c, items, i); }) : items.map(r.kind === 'series' ? showCard : movieCard));
+      add(r.key, r.name, r.kind === 'live' ? items.map(function (c, i) { return liveCard(c, items, i); }) : items.map(r.kind === 'series' ? showCard : movieCard), goTo(r.kind, r.group));
     });
     if (store.profiles().length > 1 && store.ui('row_family', 'on') !== 'off') {
       const fam = store.others().map(function (o) {
@@ -1059,7 +1395,7 @@
     }
     const order = store.ui('rowsorder', '').split(',').filter(Boolean);
     rows.sort(function (p, q) { const i = order.indexOf(p.key), j = order.indexOf(q.key); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
-    rows.forEach(function (r) { first.push(r.cards[0]); root.appendChild(shelf(r.title, r.cards)); });
+    rows.forEach(function (r) { first.push(r.cards[0]); root.appendChild(shelf(r.title, r.cards, r.more)); });
     if (!first.length) root.appendChild(h('div', { class: 'msg', text: 'Er is niets om te tonen voor dit profiel. Controleer Instellingen → Voor jou.' }));
     if (first[0]) heroFor(first[0]._info);
     return root;
@@ -1074,10 +1410,18 @@
     toast('📌 ' + group + ' staat nu op Voor jou');
   }
 
+  /** True when the same programme already ran earlier on this channel in the guide. */
+  function isRepeat(c, p) {
+    const t = fold(p.title);
+    if (t.length < 4) return false;
+    return state.epg.forChannel(c).some(function (x) { return x.start < p.start && fold(x.title) === t; });
+  }
+
   function liveFiltered() {
     const all = vis('live');
     const g = state.group.live;
     if (g === '__fav') return all.filter(function (c) { return store.isFav(c.id); });
+    if (g === '__sport') return all.filter(function (c) { return store.chan(c.id).sport; });
     if (g === '__zap') return all.filter(function (c) { return store.zapList().indexOf(c.id) >= 0; });
     return g ? all.filter(function (c) { return c.group === g; }) : all;
   }
@@ -1103,16 +1447,30 @@
     const cats = [['', 'Alle zenders', all.length]];
     const nf = store.favs().length;
     if (nf) cats.push(['__fav', '★ Favorieten', all.filter(function (c) { return store.isFav(c.id); }).length]);
+    const nsp = all.filter(function (c) { return store.chan(c.id).sport; }).length;
+    if (nsp) cats.push(['__sport', '⚽ Sport', nsp]);
     if (store.zapList().length) cats.push(['__zap', '⚡ Zapplijst', all.filter(function (c) { return store.zapList().indexOf(c.id) >= 0; }).length]);
     groupsOf(all).forEach(function (x) { cats.push([x, x, counts[x]]); });
     root.appendChild(h('div', { class: 'lcol cats' }, cats.map(function (c) {
-      return h('button', { class: 'lcat' + (c[0] === g ? ' on' : ''), type: 'button', 'data-k': 'cat|' + c[0], onclick: function () {
+      const catBtn = h('button', { class: 'lcat' + (c[0] === g ? ' on' : ''), type: 'button', 'data-k': 'cat|' + c[0], onclick: function () {
         state.group.live = c[0];
         state.shown.live = 0;
         render();
         const f = document.querySelector('.lch');
         if (f) f.focus({ preventScroll: true });
       } }, [h('span', { class: 'nm', text: c[1] }), h('span', { class: 'ct', text: String(c[2]) })]);
+      if (c[0] && c[0].indexOf('__') !== 0) catBtn._lp = function () { groupMenu(c[0]); };
+      if (c[0] === '__fav') catBtn._lp = function () {
+        textDialog('Naam voor een eigen groep van je favorieten', '', function (t) {
+          t = t.trim();
+          if (!t) return;
+          store.favs().forEach(function (id) { store.setChan(id, { folder: t }); });
+          bump();
+          toast('Favorieten staan nu in de groep ' + t);
+          render(true);
+        });
+      };
+      return catBtn;
     })));
 
     const n = state.shown.live || 60;
@@ -1177,6 +1535,7 @@
       } }, [h('span', { class: 'nm', text: c.label }), c.count != null ? h('span', { class: 'ct', text: String(c.count) }) : null]);
     })));
     const right = h('div', { class: 'lcol items' }, [h('h1', { class: 'sh', text: o.title })]);
+    if (o.feature) right.appendChild(o.feature);
     if (o.raw) right.appendChild(o.raw);
     else if (o.cards.length) right.appendChild(h('div', { class: 'grid' + (o.posters ? ' posters' : '') }, o.cards));
     else right.appendChild(h('div', { class: 'msg', text: o.empty }));
@@ -1264,7 +1623,7 @@
     return '';
   }
 
-  function groupLabel(g) { return g === '__fav' ? '★ Favorieten' : g === '__zap' ? '⚡ Zapplijst' : g || 'Alle zenders'; }
+  function groupLabel(g) { return g === '__fav' ? '★ Favorieten' : g === '__sport' ? '⚽ Sport' : g === '__zap' ? '⚡ Zapplijst' : g || 'Alle zenders'; }
 
   /** True when a programme title looks like something from your list or recent history. */
   function favTitle(title) {
@@ -1276,8 +1635,300 @@
     return t.length >= 4 && favTitle.set.some(function (x) { return t === x || t.indexOf(x) >= 0; });
   }
 
+  // ---------- sport hub ----------
+  const SPORT_DEFS = [
+    ['Voetbal', /voetbal|football|soccer|eredivisie|keuken kampioen|premier league|champions league|europa league|conference league|la liga|bundesliga|serie a|ligue 1|jupiler|knvb|nations league|wk kwalificatie|ek kwalificatie/],
+    ['Motorsport', /formule 1|formula 1|formule1|\bf1\b|grand prix|motogp|moto gp|moto2|superbike|rally|dakar|formule e/],
+    ['Tennis', /tennis|\batp\b|\bwta\b|roland garros|wimbledon|australian open|us open/],
+    ['Wielrennen', /wielren|tour de france|giro d|vuelta|cycling|ronde van|amstel gold|parijs roubaix|veldrijden|\buci\b/],
+    ['Darts', /darts|\bpdc\b/],
+    ['Vechtsport', /\bufc\b|\bmma\b|boksen|boxing|kickbox|wrestling|\bwwe\b/]
+  ];
+  const SPORT_OTHER = /basketbal|\bnba\b|\bnfl\b|golf|hockey|schaatsen|skien|biatlon|atletiek|volleybal|handbal|rugby|zwemmen|turnen|paardensport|snooker|honkbal|\bmlb\b|\bnhl\b|sport/;
+  const SPORT_COL = { Voetbal: '#2e9b4f', Motorsport: '#d63a2f', Tennis: '#a6b92e', Wielrennen: '#2f7fd6', Darts: '#8a4fd0', Vechtsport: '#c2561d', Overig: '#6b7280' };
+  const SPORT_ICO = { Voetbal: '⚽', Motorsport: '🏎', Tennis: '🎾', Wielrennen: '🚴', Darts: '🎯', Vechtsport: '🥊', Overig: '🏅' };
+  const DAYN = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+
+  /** Splits "Eredivisie: Ajax - PSV" into teams and competition; null when the title is not a match. */
+  function parseMatch(title) {
+    const t = String(title || '').trim();
+    let comp = '';
+    let rest = t;
+    const ci = t.indexOf(':');
+    if (ci > 0 && ci < 34) { comp = t.slice(0, ci).trim(); rest = t.slice(ci + 1).trim(); }
+    const re = /^(.{2,32}?)\s+(?:-|–|—|vs\.?|v|tegen)\s+(.{2,32})$/i;
+    const strip = function (s) { return s.replace(/\s*[(\[].*$/, '').trim(); };
+    const m = strip(rest).match(re);
+    if (m) return { a: m[1].trim(), b: m[2].trim(), comp: comp };
+    const m2 = comp ? strip(t).match(re) : null;
+    return m2 ? { a: m2[1].trim(), b: m2[2].trim(), comp: '' } : null;
+  }
+
+  /** Which sport a programme belongs to, or '' when it is not sport. */
+  function sportOf(c, p) {
+    const s = fold(p.title + ' ' + (p.cat || ''));
+    for (let i = 0; i < SPORT_DEFS.length; i++) if (SPORT_DEFS[i][1].test(s)) return SPORT_DEFS[i][0];
+    if (p.cat && catOf(p.cat) === 'Sport') return 'Overig';
+    const flagged = store.chan(c.id).sport || /sport|espn|eurosport|viaplay|dazn/.test(fold(c.group || '') + ' ' + fold(c.name));
+    if (flagged && p.stop - p.start >= 45 * 60000) return 'Overig';
+    return '';
+  }
+
+  /** All sport programmes from 24 hours ago to a week ahead, sorted by start. Cached for two minutes. */
+  function sportList() {
+    if (!state.lib || !state.epg || !state.epg.size) return [];
+    const key = state.rev + '|' + state.epg.size + '|' + Math.floor(Date.now() / 120000);
+    if (sportList.key === key) return sportList.list;
+    const now = Date.now();
+    const out = [];
+    const seen = {};
+    const chans = vis('live');
+    for (let i = 0; i < chans.length && i < 4000; i++) {
+      const c = chans[i];
+      if (isRadio(c)) continue;
+      const pr = state.epg.forChannel(c);
+      for (let j = 0; j < pr.length; j++) {
+        const p = pr[j];
+        if (p.stop < now - 86400000 || p.start > now + 7 * 86400000) continue;
+        const sp = sportOf(c, p);
+        if (!sp) continue;
+        const dk = fold(p.title) + '|' + p.start;
+        if (seen[dk]) continue;
+        seen[dk] = 1;
+        const pm = sp === 'Motorsport' || sp === 'Wielrennen' ? null : parseMatch(p.title);
+        out.push({ c: c, p: p, sport: sp, teams: pm ? [pm.a, pm.b] : null, comp: pm ? pm.comp : '' });
+      }
+    }
+    out.sort(function (a, b) { return a.p.start - b.p.start; });
+    sportList.key = key;
+    sportList.list = out;
+    return out;
+  }
+
+  function myTeams() { try { return JSON.parse(store.ui('myteams', '[]')); } catch (e) { return []; } }
+  function isMine(e) {
+    const m = myTeams();
+    if (!m.length) return false;
+    if (m.indexOf('s:' + e.sport) >= 0) return true;
+    if (e.teams) return e.teams.some(function (t) { return m.indexOf('t:' + fold(t)) >= 0; });
+    return false;
+  }
+  function sameDay(ms) { return new Date(ms).toDateString() === new Date().toDateString(); }
+
+  function matchCard(e, tag, big) {
+    const now = Date.now();
+    const live = e.p.start <= now && e.p.stop > now;
+    const ended = e.p.stop <= now;
+    const when = live ? 'LIVE' : (sameDay(e.p.start) ? '' : DAYN[new Date(e.p.start).getDay()] + ' ') + U.clock(e.p.start);
+    const title = e.teams ? e.teams[0] + ' – ' + e.teams[1] : e.p.title;
+    const sub = [e.comp || e.sport, e.c.name].filter(Boolean).join(' · ');
+    const kids = [
+      h('div', { class: 'mw' }, [h('div', { class: 'mwt', text: ended ? 'Gemist' : when })]),
+      h('div', { class: 'mb' }, [h('div', { class: 'mn', text: (isMine(e) ? '★ ' : '') + title }), h('div', { class: 'ms', text: sub })]),
+      h('div', { class: 'ml', style: { backgroundImage: e.c.logo ? art(e.c.logo) : 'none' } }, e.c.logo ? [] : [h('span', { text: e.c.name.trim().slice(0, 2).toUpperCase() })])
+    ];
+    if (live) kids.push(h('div', { class: 'bar' }, [h('i', { style: { width: Math.round(100 * (now - e.p.start) / (e.p.stop - e.p.start)) + '%' } })]));
+    const b = h('button', { class: 'mcard' + (big ? ' big' : '') + (live ? ' islive' : '') + (ended ? ' ended' : ''), type: 'button', 'data-k': 'm' + (tag || '') + '|' + e.c.id + '|' + e.p.start, onclick: function () {
+      if (live) { const l = vis('live'); return play(l, l.indexOf(e.c)); }
+      if (ended && e.c.archive) return playCatchup(e.c, e.p);
+      progMenu(e.c, e.p, false);
+    }}, kids);
+    b.style.setProperty('--sc', SPORT_COL[e.sport] || SPORT_COL.Overig);
+    b._lp = function () { progMenu(e.c, e.p, live); };
+    b._info = { title: title, sub: sub, desc: (e.p.desc || '').slice(0, 280), logo: e.c.logo, photo: '', backdrop: '', kind: 'live', tag: e.sport.toUpperCase(), key: e.sport, hint: live ? 'OK = kijken' : 'OK = herinnering of opnemen', name: '' };
+    return b;
+  }
+
+  /** A match of your teams (or one with a reminder) that starts within ten minutes. */
+  function sportSoon() {
+    const now = Date.now();
+    const list = sportList();
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (e.p.start > now && e.p.start - now <= 10 * 60000 && (isMine(e) || store.hasReminder(e.c.id, e.p.start)) && !(state.sportOff || {})[e.c.id + e.p.start]) return e;
+    }
+    return null;
+  }
+  function sportBanner() {
+    const e = sportSoon();
+    if (!e) return null;
+    const min = Math.max(1, Math.round((e.p.start - Date.now()) / 60000));
+    const t = e.teams ? e.teams[0] + ' – ' + e.teams[1] : e.p.title;
+    return h('div', { class: 'upd sbar' }, [
+      h('span', { class: 'sbt', text: SPORT_ICO[e.sport] + ' ' + t + ' begint over ' + min + ' min op ' + e.c.name }),
+      btn('Naar zender', function () { const l = vis('live'); play(l, l.indexOf(e.c)); }),
+      btn('Later', function () { (state.sportOff = state.sportOff || {})[e.c.id + e.p.start] = 1; render(true); }, 'btn sec')
+    ]);
+  }
+
+  function checkSport() {
+    if (!state.lib || modalOpen()) return;
+    const now = Date.now();
+    const list = sportList();
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (e.p.start <= now || e.p.start - now > 10 * 60000 || !isMine(e)) continue;
+      const k = 's' + e.c.id + '|' + e.p.start;
+      if (alerted[k]) continue;
+      alerted[k] = 1;
+      chime();
+      openModal(h('div', { class: 'dlg' }, [
+        h('h2', { text: (e.teams ? e.teams[0] + ' – ' + e.teams[1] : e.p.title) }),
+        h('div', { class: 'sub', text: e.sport + ' · ' + e.c.name + ' · begint om ' + U.clock(e.p.start) }),
+        h('div', { class: 'btns' }, [btn('Nu kijken', function () { closeModal(); const l = vis('live'); play(l, l.indexOf(e.c)); }), btn('Later', closeModal, 'btn sec')])
+      ]));
+      return;
+    }
+  }
+  setInterval(checkSport, 60000);
+
+  function teamsMenu() {
+    const mine = myTeams();
+    const list = sportList();
+    const teams = {};
+    const sports = {};
+    list.forEach(function (e) { sports[e.sport] = 1; if (e.teams) { teams[e.teams[0]] = 1; teams[e.teams[1]] = 1; } });
+    const flip = function (k) { const a = myTeams(); const i = a.indexOf(k); if (i >= 0) a.splice(i, 1); else a.push(k); setUi('myteams', JSON.stringify(a)); return i < 0; };
+    const mk = function (label, k) {
+      const b = row({ title: label, right: mine.indexOf(k) >= 0 ? '✓' : '○', onclick: function () { b.querySelector('.sub').textContent = flip(k) ? '✓' : '○'; } });
+      return b;
+    };
+    const items = Object.keys(sports).sort().map(function (s) { return mk(SPORT_ICO[s] + ' Alle ' + s.toLowerCase(), 's:' + s); })
+      .concat(Object.keys(teams).sort().slice(0, 80).map(function (t) { return mk(t, 't:' + fold(t)); }));
+    openModal(h('div', { class: 'dlg', style: { minWidth: '90rem' } }, [
+      h('h2', { text: 'Mijn teams en sporten' }),
+      h('div', { class: 'sub', text: 'Je krijgt een melding 10 minuten voor de aftrap en een rij Jouw wedstrijden.' }),
+      h('div', { class: 'list', style: { maxHeight: '60rem', overflow: 'auto', padding: '0.6rem' } }, items.length ? items : [h('div', { class: 'msg', text: 'Nog geen wedstrijden in de gids gevonden.' })]),
+      btn('Klaar', function () { closeModal(); render(true); })
+    ]));
+  }
+
+  function vSport() {
+    const root = h('div', { class: 'page sportpg' });
+    const all = sportList();
+    const now = Date.now();
+    root.appendChild(h('h1', { class: 'ph', text: state.sport ? SPORT_ICO[state.sport] + ' ' + state.sport : 'Sport' }));
+    const bn = sportBanner();
+    if (bn) root.appendChild(bn);
+    if (!all.length) {
+      root.appendChild(h('div', { class: 'msg', text: 'Geen sport in de gids gevonden. Laad een gids en markeer zenders als sportzender (houd OK ingedrukt op een zender).' }));
+      setHero({ title: '', key: 'luma' });
+      return root;
+    }
+    // 1. sport tiles
+    const counts = {};
+    all.forEach(function (e) { const o = counts[e.sport] || (counts[e.sport] = { n: 0, live: 0 }); if (e.p.stop > now) o.n++; if (e.p.start <= now && e.p.stop > now) o.live++; });
+    const names = Object.keys(counts).sort(function (a, b) { return (counts[b].live - counts[a].live) || (counts[b].n - counts[a].n); });
+    const tile = function (key, label, ico, col, sub) {
+      const b = h('button', { class: 'rnd' + (state.sport === key ? ' sel' : ''), type: 'button', 'data-k': 'st|' + key, onclick: function () { state.sport = key; state.sportDay = 0; state.shown.sp = 0; render(); const f = document.querySelector('.rnd.sel'); if (f) f.focus({ preventScroll: true }); } }, [
+        h('div', { class: 'rc', style: { backgroundImage: 'linear-gradient(135deg,' + col + ',#14151b)', backgroundSize: 'cover' } }, [h('span', { text: ico })]),
+        h('div', { class: 'rl', text: label }), h('div', { class: 'rs', text: sub })]);
+      b._info = { title: label, sub: sub, desc: '', logo: '', photo: '', backdrop: '', kind: 'live', tag: 'SPORT', key: key || 'sport', hint: '', name: '' };
+      return b;
+    };
+    const tiles = [tile('', 'Alles', '🏆', '#e8731a', all.filter(function (e) { return e.p.start <= now && e.p.stop > now; }).length + ' live')]
+      .concat(names.map(function (s) { return tile(s, s, SPORT_ICO[s], SPORT_COL[s], counts[s].live ? counts[s].live + ' live' : counts[s].n + ' gepland'); }));
+    root.appendChild(h('div', { class: 'rail sporttiles' }, tiles));
+
+    const sel = state.sport ? all.filter(function (e) { return e.sport === state.sport; }) : all;
+    const upcoming = sel.filter(function (e) { return e.p.stop > now; });
+    const liveNow = upcoming.filter(function (e) { return e.p.start <= now; });
+    // 9. featured match
+    const mineUp = upcoming.filter(isMine);
+    const feat = mineUp.filter(function (e) { return e.p.start <= now; })[0] || liveNow[0] || mineUp[0] || upcoming[0];
+    if (feat) root.appendChild(h('div', { class: 'feat sportfeat' }, [matchCard(feat, 'f', true)]));
+    // 5. your matches
+    const mine = mineUp.filter(function (e) { return e !== feat; }).slice(0, 10);
+    if (mine.length) root.appendChild(shelf('Jouw wedstrijden', mine.map(function (e) { return matchCard(e, 'j'); })));
+    else if (!myTeams().length) root.appendChild(h('div', { class: 'rowbtn' }, [btn('★ Kies je teams en sporten', teamsMenu, 'btn sec')]));
+    // 2. live now
+    const lv = liveNow.filter(function (e) { return e !== feat; }).slice(0, 12);
+    if (lv.length) root.appendChild(shelf('Nu live', lv.map(function (e) { return matchCard(e, 'l'); })));
+    // 4 + 3. schedule per day
+    const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const a = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i);
+      const b2 = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i + 1);
+      days.push({ a: a.getTime(), b: b2.getTime(), label: i === 0 ? 'Vandaag' : i === 1 ? 'Morgen' : DAYN[a.getDay()] + ' ' + a.getDate() });
+    }
+    const di = Math.min(state.sportDay || 0, 6);
+    root.appendChild(h('h2', { class: 'sh2', text: 'Programma' }));
+    root.appendChild(h('div', { class: 'chips' }, days.map(function (d, i) {
+      return h('button', { class: 'chip' + (i === di ? ' on' : ''), type: 'button', 'data-k': 'sd|' + i, onclick: function () { state.sportDay = i; state.shown.sp = 0; render(true); } }, [d.label]);
+    })));
+    const dayList = sel.filter(function (e) { return e.p.start < days[di].b && e.p.stop > days[di].a && e.p.stop > now; });
+    const n = state.shown.sp || 24;
+    const box = h('div', { class: 'mlist' }, dayList.slice(0, n).map(function (e) { return matchCard(e, 'd'); }));
+    if (!dayList.length) box.appendChild(h('div', { class: 'msg', text: 'Geen sport gevonden voor ' + days[di].label.toLowerCase() + '.' }));
+    root.appendChild(box);
+    if (dayList.length > n) root.appendChild(btn('Meer wedstrijden (' + (dayList.length - n) + ')', function () { state.shown.sp = n + 24; render(true); }, 'btn sec'));
+    // 7. missed
+    const missed = sel.filter(function (e) { return e.p.stop <= now && e.c.archive; }).reverse().slice(0, 10);
+    const recs = sportRecs();
+    if (missed.length || recs.length) {
+      root.appendChild(shelf('Gemist en opnames', recs.map(function (r) {
+        const b = card({ kind: 'live', wide: true, title: r.title, tag: 'OPNAME', sub: new Date(r.time).toLocaleDateString('nl-NL', { weekday: 'short' }) + ' · ' + fmtSize(r.size), onclick: function () { playRec(r); } });
+        return b;
+      }).concat(missed.map(function (e) { return matchCard(e, 'g'); }))));
+    }
+    root.appendChild(h('div', { class: 'rowbtn' }, [btn('★ Mijn teams en sporten', teamsMenu, 'btn sec'), state.sport ? btn('Alle sporten', function () { state.sport = ''; render(); }, 'btn sec') : null]));
+    const first = feat || upcoming[0];
+    setHero(first ? { title: '', key: first.sport } : { title: '', key: 'luma' });
+    return root;
+  }
+
+  function sportRecs() {
+    if (!native || !native.recordings) return [];
+    let list = [];
+    try { list = JSON.parse(native.recordings()); } catch (e) { return []; }
+    const all = SPORT_DEFS.map(function (d) { return d[1]; }).concat([SPORT_OTHER]);
+    return list.filter(function (r) { return Date.now() - r.time < 7 * 86400000; }).map(function (r) {
+      return { name: r.name, path: r.path, time: r.time, size: r.size, title: r.name.replace(/_\d{8}_\d{4}\.ts$/, '').replace(/_/g, ' ') };
+    }).filter(function (r) { const s = fold(r.title); return all.some(function (re) { return re.test(s); }); }).reverse().slice(0, 8);
+  }
+  function playRec(r) {
+    if (!native) return;
+    const id = 'rec:' + r.name;
+    state.playMeta[id] = { id: id, kind: 'vod', title: r.title, name: r.title, url: 'file://' + r.path };
+    native.play(JSON.stringify({ id: id, title: r.title, url: 'file://' + r.path, live: false, position: 0, accent: accent(), seekBack: +store.ui('seekBack', '10') * 1000, seekFwd: +store.ui('seekFwd', '30') * 1000, overlayMs: +store.ui('overlay', '5') * 1000, autoNext: false, skipMs: 85000 }));
+  }
+
+  function vNowNext() {
+    const all = vis('live');
+    const g = state.group.guide;
+    const cats = [['', 'Alle zenders']].concat(store.favs().length ? [['__fav', '★ Favorieten']] : []).concat(groupsOf(all).map(function (x) { return [x, x]; }));
+    const list = g === '__fav' ? all.filter(function (c) { return store.isFav(c.id); }) : g ? all.filter(function (c) { return c.group === g; }) : all;
+    const root = h('div', { class: 'live3 nn' });
+    const left = h('div', { class: 'lcol cats' }, [h('button', { class: 'lcat act', type: 'button', 'data-k': 'cat|__grid', onclick: function () { state.guideMode = ''; render(); } }, [h('span', { class: 'nm', text: '▦ Tijdrooster' })])]);
+    cats.forEach(function (c) {
+      left.appendChild(h('button', { class: 'lcat' + (c[0] === g ? ' on' : ''), type: 'button', 'data-k': 'cat|' + c[0], onclick: function () { state.group.guide = c[0]; state.shown.nn = 0; render(); const f = document.querySelector('.nnrow'); if (f) f.focus({ preventScroll: true }); } }, [h('span', { class: 'nm', text: c[1] })]));
+    });
+    root.appendChild(left);
+    const right = h('div', { class: 'lcol items' }, [h('h1', { class: 'sh', text: 'Nu en straks' })]);
+    const n = state.shown.nn || 30;
+    list.slice(0, n).forEach(function (c, i) {
+      const nn = nowInfo(c);
+      const cell = function (p, label) {
+        if (!p) return h('div', { class: 'nncell dim' }, [h('div', { class: 'nt', text: label === 'now' ? 'Geen informatie' : '' })]);
+        return h('div', { class: 'nncell' }, [h('div', { class: 'nt', text: p.title }), h('div', { class: 'ntm', text: U.clock(p.start) + ' – ' + U.clock(p.stop) }), p.desc ? h('div', { class: 'nd', text: p.desc.slice(0, 110) }) : null]);
+      };
+      const b = h('button', { class: 'nnrow', type: 'button', 'data-k': 'nn|' + c.id, onclick: function () { play(list, i); } }, [
+        h('div', { class: 'nlogo', style: { backgroundImage: c.logo ? art(c.logo) + ',' + tint(c.name) : tint(c.name) } }, c.logo ? [] : [h('span', { text: c.name.trim().slice(0, 2).toUpperCase() })]),
+        cell(nn.now, 'now'), cell(nn.next, 'next')]);
+      b._lp = function () { channelMenu(c); };
+      right.appendChild(b);
+    });
+    if (list.length > n) right.appendChild(btn('Meer zenders (' + (list.length - n) + ')', function () { state.shown.nn = n + 30; render(true); }, 'btn sec'));
+    if (!list.length) right.appendChild(h('div', { class: 'msg', text: 'Geen zenders in deze groep.' }));
+    root.appendChild(right);
+    setHero({ title: '', key: 'luma' });
+    return root;
+  }
+
   function vGuide() {
     if (!state.lib) return vHome();
+    if (state.guideMode === 'nn') return vNowNext();
     const root = h('div');
     const all = vis('live');
     const g = state.group.guide;
@@ -1311,6 +1962,10 @@
       }, 'chip'),
       btn(state.guideCat ? 'Genre: ' + state.guideCat : 'Alle genres', function () {
         pickList('Genre', [['', 'Alle genres']].concat(Object.keys(GENRES).map(function (k) { return [k, k]; })), state.guideCat, function (v) { state.guideCat = v; render(); });
+      }, 'chip'),
+      btn('Nu / Straks', function () { state.guideMode = 'nn'; render(); }, 'chip'),
+      btn('Sport', function () {
+        pickList('Sportagenda', [['', 'Alles tonen'], ['voetbal', 'Voetbal'], ['eredivisie', 'Eredivisie'], ['champions league', 'Champions League'], ['formule 1', 'Formule 1'], ['tennis', 'Tennis'], ['darts', 'Darts'], ['wielrennen', 'Wielrennen'], ['basketbal', 'Basketbal'], ['schaatsen', 'Schaatsen']], state.guideQ, function (v) { state.guideQ = v; render(); });
       }, 'chip'),
       btn(state.guideQ ? 'Zoek: ' + state.guideQ : 'Zoek programma', function () {
         textDialog('Zoek in de gids', state.guideQ, function (t) { state.guideQ = t; render(); });
@@ -1353,7 +2008,7 @@
             const set = store.toggleReminder({ chId: c.id, chName: c.name, title: p.title, start: p.start });
             toast(set ? '🔔 Herinnering om ' + U.clock(p.start) + ': ' + p.title : 'Herinnering verwijderd');
             render(true);
-          } }, [rem ? h('span', { text: '🔔' }) : null, star ? h('span', { text: '★ ' }) : null, h('span', { text: p.title })]);
+          } }, [rem ? h('span', { text: '🔔' }) : null, star ? h('span', { text: '★ ' }) : null, isRepeat(c, p) ? h('span', { text: '↻ ', title: 'Herhaling' }) : null, h('span', { text: p.title })]);
         b._ginfo = { ch: c, p: p, isNow: isNow };
         if (p.stop > now || c.archive) b._lp = function () { progMenu(c, p, isNow); };
         r.appendChild(b);
@@ -1494,7 +2149,20 @@
       return c;
     });
     setHero({ title: '', key: 'luma' });
-    return vSplit({ menu: menu, title: g && g.indexOf('__col:') === 0 ? 'Verzameling' : g === '__list' ? 'Mijn lijst' : g === '__unseen' ? 'Nog niet gezien' : g || title, posters: true, cards: cards,
+    let feature = null;
+    if (!g && !yf && !lf && all.length >= 3 && store.ui('featured', 'on') !== 'off') {
+      const pickIds = [];
+      store.historyList(60).forEach(function (e) { if ((kind === 'series') === (e.kind === 'series')) { const id = kind === 'series' ? e.showId : e.id; if (id && pickIds.indexOf(id) < 0) pickIds.push(id); } });
+      const byIdAll = {};
+      all.forEach(function (x) { byIdAll[x.id] = x; });
+      const feats = pickIds.map(function (id) { return byIdAll[id]; }).filter(Boolean).slice(0, 2);
+      all.slice(-8).reverse().forEach(function (x) { if (feats.length < 5 && feats.indexOf(x) < 0) feats.push(x); });
+      feature = h('div', { class: 'feat' }, feats.map(function (it) {
+        const el = card({ kind: kind, wide: true, title: it.name, sub: it.group, logo: it.logo, tag: 'UITGELICHT', metaKind: kind, metaName: it.name, onclick: function () { if (kind === 'series') openShow(it); else playMovie(it); }, lp: function () { titleMenu(it); } });
+        return el;
+      }));
+    }
+    return vSplit({ feature: feature, menu: menu, title: g && g.indexOf('__col:') === 0 ? 'Verzameling' : g === '__list' ? 'Mijn lijst' : g === '__unseen' ? 'Nog niet gezien' : g || title, posters: true, cards: cards,
       empty: g === '__list' ? 'Je Mijn lijst is nog leeg: houd OK ingedrukt op een titel.' : 'Niets gevonden.', moreBtn: more(kind, list.length, function () { render(true); }) });
   }
 
@@ -1525,12 +2193,49 @@
     return q.split(' ').every(function (w) { return n.indexOf(w) >= 0; });
   }
 
+  const MOODS = [['grappig', 'Iets grappigs', /comedy|komedie|humor|kluch|grap/i], ['spannend', 'Iets spannends', /thriller|spanning|crime|misdaad|actie|action|horror/i], ['romantisch', 'Iets romantisch', /romanti|romance|drama|liefde/i], ['gezin', 'Voor het hele gezin', /famil|gezin|kids|kinder|animatie|animation|disney/i], ['echt', 'Iets echts', /docu|natuur|history|geschied|true|wetenschap/i], ['onzin', 'Iets fantasierijks', /sci-?fi|fantasy|science|avontuur|adventure/i]];
+  function moodMenu() {
+    pickList('Waar heb je zin in?', MOODS.map(function (m) { return [m[0], m[1]]; }), '', function (v) {
+      const m = MOODS.filter(function (x) { return x[0] === v; })[0];
+      const films = groupsOf(vis('vod')).filter(function (g) { return m[2].test(g); });
+      const shows = groupsOf(vis('series')).filter(function (g) { return m[2].test(g); });
+      const opts = films.map(function (g) { return ['vod|' + g, 'Film: ' + g]; }).concat(shows.map(function (g) { return ['series|' + g, 'Serie: ' + g]; }));
+      if (!opts.length) return toast('Geen passende categorie in je bron');
+      pickList(m[1], opts, '', function (c) {
+        const k = c.split('|')[0], g = c.slice(k.length + 1);
+        state.group[k] = g;
+        state.shown = {};
+        go(k);
+      });
+    });
+  }
+
+  /** Programmes in the guide (now and the coming days) whose title matches. */
+  function searchGuide(q) {
+    if (!state.epg || !state.epg.size || !state.lib) return [];
+    const now = Date.now();
+    const out = [];
+    const list = vis('live');
+    for (let i = 0; i < list.length && i < 4000 && out.length < 15; i++) {
+      const c = list[i];
+      const pr = state.epg.forChannel(c);
+      for (let j = 0; j < pr.length; j++) {
+        const p = pr[j];
+        if (p.stop < now || !matches(p.title, q)) continue;
+        out.push({ c: c, p: p, now: p.start <= now });
+        break;
+      }
+    }
+    return out;
+  }
+
   function vSearch() {
     const root = h('div', { class: 'page' });
     root.appendChild(h('h1', { class: 'ph', text: 'Zoeken' }));
     const input = h('input', { type: 'text', value: state.query || '', placeholder: 'Zoek een zender, film of serie…', autocomplete: 'off', autocapitalize: 'off' });
     const out = h('div');
-    root.appendChild(h('div', { class: 'chips' }, [h('button', { class: 'chip' + (state.unseenOnly ? ' on' : ''), type: 'button', onclick: function () { state.unseenOnly = !state.unseenOnly; run(); } }, ['Alleen wat ik nog niet zag'])]));
+    root.appendChild(h('div', { class: 'chips' }, [h('button', { class: 'chip' + (state.unseenOnly ? ' on' : ''), type: 'button', onclick: function () { state.unseenOnly = !state.unseenOnly; run(); } }, ['Alleen wat ik nog niet zag']),
+      h('button', { class: 'chip', type: 'button', onclick: moodMenu }, ['Stemming'])]));
     function run() {
       state.query = input.value;
       out.textContent = '';
@@ -1561,7 +2266,14 @@
       if (live.length) out.appendChild(shelf('Zenders', live.map(function (c, i) { return liveCard(c, live, i); })));
       if (vod.length) out.appendChild(shelf('Films', vod.map(movieCard)));
       if (ser.length) out.appendChild(shelf('Series', ser.map(showCard)));
-      if (!live.length && !vod.length && !ser.length) out.appendChild(h('div', { class: 'msg', text: 'Niets gevonden voor "' + state.query + '".' }));
+      const progHits = q.length >= 3 ? searchGuide(q) : [];
+      if (progHits.length) {
+        out.appendChild(h('h2', { text: 'In de gids' }));
+        progHits.forEach(function (x) {
+          out.appendChild(row({ title: x.p.title, sub: x.c.name + ' · ' + new Date(x.p.start).toLocaleString('nl-NL', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), right: x.now ? 'Nu' : '›', onclick: function () { progMenu(x.c, x.p, x.now); } }));
+        });
+      }
+      if (!live.length && !vod.length && !ser.length && !progHits.length) out.appendChild(h('div', { class: 'msg', text: 'Niets gevonden voor "' + state.query + '".' }));
     }
     input.addEventListener('input', run);
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { store.addSearch(input.value); run(); actorSearch(input.value, out); } });
@@ -1620,6 +2332,7 @@
     const fol = follows();
     if (!fol.length || !state.lib) return;
     let changed = false;
+    const fresh = [];
     for (const f of fol.slice(0, 12)) {
       const show = state.lib.series.find(function (s) { return s.id === f.id; });
       if (!show) continue;
@@ -1627,9 +2340,30 @@
       if (!show.episodes && show.xtreamId != null && state.source && state.source.type === 'xtream') {
         try { n = XT.normalizeSeriesInfo(state.source, await fetchJson(XT.apiUrl(state.source, 'get_series_info', '&series_id=' + enc(show.xtreamId)), 21600, state.source.ua || '')).length; } catch (e) { continue; }
       }
-      if (n > f.n) { toast('🔔 Nieuwe aflevering van ' + f.name); f.n = n; changed = true; }
+      if (n > f.n) { fresh.push(show); f.n = n; changed = true; }
     }
     if (changed) store.setUi('follows', JSON.stringify(fol));
+    if (fresh.length) {
+      if (modalOpen()) toast('🔔 Nieuwe aflevering van ' + fresh[0].name);
+      else openModal(h('div', { class: 'dlg' }, [h('h2', { text: '🔔 Nieuwe aflevering' }), h('div', { class: 'sub', text: fresh.map(function (x) { return x.name; }).join(', ') }),
+        h('div', { class: 'btns' }, [btn('Bekijken', function () { closeModal(); openShow(fresh[0]); }), btn('Later', closeModal, 'btn sec')])]));
+    }
+  }
+
+  /** "Where was I": the summary of the last finished episode, from TMDB. */
+  async function recap(show, box) {
+    const key = store.pref('tmdb');
+    if (!key || !show.episodes) return;
+    let last = -1;
+    show.episodes.forEach(function (e, i) { if (store.isWatched(e.id) || (store.getProgress(e.id) && store.getProgress(e.id).dur && store.getProgress(e.id).pos / store.getProgress(e.id).dur >= 0.95)) last = i; });
+    if (last < 0) return;
+    const ep = show.episodes[last];
+    try {
+      const info = await META.lookup('series', show.name, key, store.pref('tmdblang') || 'nl-NL', function (u) { return fetchJson(u, 86400); });
+      if (!info || !info.id) return;
+      const j = await fetchJson('https://api.themoviedb.org/3/tv/' + info.id + '/season/' + ep.s + '/episode/' + ep.e + '?api_key=' + encodeURIComponent(key) + '&language=' + encodeURIComponent(store.pref('tmdblang') || 'nl-NL'), 86400);
+      if (j && j.overview) box.textContent = 'Waar was ik gebleven? S' + U.pad(ep.s) + 'E' + U.pad(ep.e) + ': ' + j.overview;
+    } catch (e) { /* no recap */ }
   }
 
   function vShow() {
@@ -1648,6 +2382,9 @@
         render(true);
       }, 'btn sec'),
       btn(store.inList(show.id) ? '♥ In Mijn lijst' : '♡ Mijn lijst', function () { store.toggleList({ id: show.id, kind: 'series', name: show.name, logo: show.logo, group: show.group }); render(true); }, 'btn sec')]));
+    const recapBox = h('p', { class: 'sub', style: { maxWidth: '90rem' } });
+    root.appendChild(recapBox);
+    recap(show, recapBox);
     if (!show.episodes.length) root.appendChild(h('div', { class: 'msg', text: 'Geen afleveringen gevonden.' }));
     let season = null;
     const list = h('div', { class: 'list' });
@@ -1657,12 +2394,15 @@
         list.appendChild(h('h2', { text: 'Seizoen ' + season, style: { marginTop: '2.4rem' } }));
       }
       const p = store.getProgress(ep.id);
-      list.appendChild(row({
+      const bar = p && p.dur && p.pos > 20000 && !store.isWatched(ep.id) ? Math.min(1, p.pos / p.dur) : store.isWatched(ep.id) ? 1 : 0;
+      const rowEl = row({
         title: 'Aflevering ' + ep.e + ' · ' + ep.title,
         sub: ((ep.dur ? ep.dur + ' · ' : '') + (ep.desc || '')).slice(0, 160),
         right: store.isWatched(ep.id) ? '✓' : p && p.dur ? Math.round(100 * p.pos / p.dur) + '%' : '',
         onclick: function () { playEpisode(show, i, p && p.pos > 20000 && p.pos < 0.95 * (p.dur || Infinity) ? p.pos - 5000 : 0); }
-      }));
+      });
+      if (bar > 0) rowEl.appendChild(h('div', { class: 'ebar' }, [h('div', { class: 'ebar-i', style: { width: Math.round(bar * 100) + '%' } })]));
+      list.appendChild(rowEl);
     });
     root.appendChild(h('div', { style: { height: '2rem' } }));
     root.appendChild(list);
@@ -1690,7 +2430,7 @@
     state.shown = {};
     bump();
     applyTheme();
-    state.view = store.ui('start', 'home');
+    state.view = startView();
     const w = document.querySelector('.who');
     if (w) w.remove();
     render();
@@ -1708,7 +2448,7 @@
           if (p.id === cur.id && !force) return chooseProfile(p);
           if (isKid() && p.id !== cur.id && pin()) return askPin('Pincode om van profiel te wisselen', function (v) { if (v !== pin()) return false; chooseProfile(p); return true; });
           chooseProfile(p);
-        } }, [avatar(p, 'pi'), h('div', { text: p.name }), p.kid ? h('div', { class: 'kid', text: 'Kinderprofiel' }) : null]);
+        } }, [avatar(p, 'pi'), h('div', { text: p.name }), p.kid ? h('div', { class: 'kid', text: 'Kinderprofiel' }) : null, store.lastOf(p.id) ? h('div', { class: 'sub', text: 'Laatst: ' + store.lastOf(p.id).slice(0, 28) }) : null]);
         b._first = p.id === cur.id;
         return b;
       }))
@@ -1720,7 +2460,7 @@
 
   function profileDialog(p) {
     const isNew = !p;
-    const d = { name: p ? p.name : '', color: p ? p.color : store.profiles().length % PCOL.length, pat: p ? p.pat || '' : '', kid: p ? !!p.kid : false, guest: p ? !!p.guest : false, src: p ? p.src || '' : '', onlyFavs: p ? !!p.onlyFavs : false };
+    const d = { name: p ? p.name : '', color: p ? p.color : store.profiles().length % PCOL.length, pat: p ? p.pat || '' : '', kid: p ? !!p.kid : false, guest: p ? !!p.guest : false, src: p ? p.src || '' : '', onlyFavs: p ? !!p.onlyFavs : false, maxAge: p ? p.maxAge || 0 : 0 };
     const draw = function () {
       const name = h('input', { type: 'text', value: d.name, placeholder: 'Naam', autocomplete: 'off' });
       name.addEventListener('input', function () { d.name = name.value; });
@@ -1729,6 +2469,7 @@
       }));
       const kid = toggleRow('Kinderprofiel', 'Verbergt vergrendelde categorieën; wisselen en instellingen vragen de pincode', d.kid, function () { d.kid = !d.kid; draw(); });
       const onlyFavs = d.kid ? toggleRow('Kinderen zien alleen favorieten', 'In Live TV alleen de zenders die je als favoriet hebt gemarkeerd (kies ze met dit profiel)', d.onlyFavs, function () { d.onlyFavs = !d.onlyFavs; draw(); }) : null;
+      const ageRow = d.kid ? choiceRow('Leeftijdsgrens voor films', 'Vraagt een TMDB-sleutel; onbekende leeftijd mag wel', [['0', 'Geen'], ['6', '6'], ['9', '9'], ['12', '12'], ['16', '16']], String(d.maxAge || 0), function (v) { d.maxAge = +v; }) : null;
       const srcRow = store.sources().length > 1 ? row({ title: 'Bron van dit profiel', sub: 'Wordt gekozen zodra je naar dit profiel wisselt', right: (store.sources().filter(function (s) { return s.id === d.src; })[0] || { name: 'Geen voorkeur' }).name || 'Bron', onclick: function () {
         pickList('Bron van dit profiel', [['', 'Geen voorkeur']].concat(store.sources().map(function (s) { return [s.id, s.name || s.url || s.server || s.id]; })), d.src, function (v) { d.src = v; draw(); });
       } }) : null;
@@ -1736,8 +2477,8 @@
       const guest = toggleRow('Gastprofiel', 'Alles van dit profiel wordt gewist zodra je naar een ander profiel gaat', d.guest, function () { d.guest = !d.guest; draw(); });
       const acts = [btn('Opslaan', function () {
         if (!d.name.trim()) { toast('Geef het profiel een naam'); return; }
-        if (isNew) store.updateProfile(store.addProfile({ name: d.name, color: d.color, kid: d.kid }).id, { guest: d.guest, src: d.src, pat: d.pat, onlyFavs: d.kid && d.onlyFavs });
-        else store.updateProfile(p.id, { name: d.name.trim(), color: d.color, kid: d.kid, guest: d.guest, src: d.src, pat: d.pat, onlyFavs: d.kid && d.onlyFavs });
+        if (isNew) store.updateProfile(store.addProfile({ name: d.name, color: d.color, kid: d.kid }).id, { guest: d.guest, src: d.src, pat: d.pat, onlyFavs: d.kid && d.onlyFavs, maxAge: d.kid ? d.maxAge : 0 });
+        else store.updateProfile(p.id, { name: d.name.trim(), color: d.color, kid: d.kid, guest: d.guest, src: d.src, pat: d.pat, onlyFavs: d.kid && d.onlyFavs, maxAge: d.kid ? d.maxAge : 0 });
         closeModal();
         applyTheme();
         bump();
@@ -1753,7 +2494,7 @@
         if (store.profiles().length > 1) acts.push(btn('Verwijderen', function () { store.removeProfile(p.id); closeModal(); applyTheme(); bump(); render(true); }, 'btn sec'));
       }
       acts.push(btn('Sluiten', closeModal, 'btn sec'));
-      openModal(h('div', { class: 'dlg', style: { minWidth: '100rem' } }, [h('h2', { text: isNew ? 'Nieuw profiel' : 'Profiel aanpassen' }), name, dots, pat, kid, onlyFavs, srcRow, guest, h('div', { class: 'btns' }, acts)]));
+      openModal(h('div', { class: 'dlg', style: { minWidth: '100rem' } }, [h('h2', { text: isNew ? 'Nieuw profiel' : 'Profiel aanpassen' }), name, dots, pat, kid, onlyFavs, ageRow, srcRow, guest, h('div', { class: 'btns' }, acts)]));
       name.focus({ preventScroll: true });
     };
     draw();
@@ -1779,7 +2520,7 @@
   }
 
   // ---------- settings ----------
-  const TABS = [['profiles', 'Profielen'], ['look', 'Uiterlijk'], ['sources', 'Bronnen'], ['foryou', 'Voor jou'], ['images', 'Beelden & info'], ['live', 'Live TV & gids'], ['play', 'Afspelen'], ['parental', 'Ouderlijk toezicht'], ['rec', 'Opnames'], ['updates', 'Updates'], ['maint', 'Onderhoud']];
+  const TABS = [['profiles', 'Profielen'], ['look', 'Uiterlijk'], ['sources', 'Bronnen'], ['foryou', 'Voor jou'], ['images', 'Beelden & info'], ['live', 'Live TV & gids'], ['play', 'Afspelen'], ['parental', 'Ouderlijk toezicht'], ['rec', 'Opnames'], ['health', 'Zenders & fouten'], ['updates', 'Updates'], ['maint', 'Onderhoud']];
 
   function field(label, key, opts) {
     opts = opts || {};
@@ -1803,7 +2544,7 @@
       return h('button', { class: 'm' + (state.setTab === t[0] ? ' on' : ''), type: 'button', onclick: function () { state.setTab = t[0]; render(true); } }, [t[1]]);
     }));
     const pane = h('div', { class: 'pane' });
-    const fn = { profiles: panePro, look: paneLook, sources: paneSources, live: paneLive, foryou: paneForYou, images: paneImages, play: panePlay, parental: paneParental, updates: paneUpdates, rec: paneRec, maint: paneMaint }[state.setTab] || panePro;
+    const fn = { profiles: panePro, look: paneLook, sources: paneSources, live: paneLive, foryou: paneForYou, images: paneImages, play: panePlay, parental: paneParental, updates: paneUpdates, rec: paneRec, health: paneHealth, maint: paneMaint }[state.setTab] || panePro;
     fn(pane);
     root.appendChild(h('div', { class: 'set' }, [menu, pane]));
     setHero({ title: '', key: 'luma' });
@@ -1824,8 +2565,15 @@
 
   function paneLook(p) {
     p.appendChild(h('h2', { text: 'Uiterlijk (alleen dit profiel)' }));
+    const hrs = [['-1', 'Uit']].concat([18, 19, 20, 21, 22, 23].map(function (x) { return [String(x), x + ':00']; }));
+    p.appendChild(choiceRow('Nachtstand vanaf', 'Warmer scherm en in de speler rustiger geluid', hrs, store.ui('nightfrom', '-1'), function (v) { setUi('nightfrom', v); applyNightLook(); }));
+    p.appendChild(choiceRow('Nachtstand tot', 'Tijdstip waarop het weer normaal wordt', [['6', '6:00'], ['7', '7:00'], ['8', '8:00'], ['9', '9:00']], store.ui('nightto', '7'), function (v) { setUi('nightto', v); applyNightLook(); }));
+    p.appendChild(choiceRow('Tekstgrootte', 'De hele app groter of kleiner', [['0.9', 'Klein'], ['1', 'Normaal'], ['1.15', 'Groot'], ['1.3', 'Extra groot']], store.ui('fontscale', '1'), function (v) { setUi('fontscale', v); applyCalm(); }));
+    p.appendChild(toggleRow('Rustige modus', 'Geen animaties en overgangen', store.ui('calm', 'off') === 'on', function () { setUi('calm', store.ui('calm', 'off') === 'on' ? 'off' : 'on'); applyCalm(); }));
     p.appendChild(toggleRow('Seizoensthema', 'Kerst, oud en nieuw en Koningsdag krijgen een eigen accentkleur', store.ui('season', 'off') === 'on', function () { setUi('season', store.ui('season', 'off') === 'on' ? 'off' : 'on'); }));
     p.appendChild(choiceRow('Doorzichtigheid van de bovenbalk', 'Hoe sterk de balk bovenin de rij eronder verbergt', [['1', 'Dicht'], ['0.6', 'Half'], ['0.3', 'Bijna doorzichtig'], ['0', 'Doorzichtig']], store.ui('topalpha', '1'), function (v) { setUi('topalpha', v); }));
+    p.appendChild(toggleRow('Foto-slideshow op Voor jou', 'Elke 10 seconden een andere foto', on('homeslides'), function () { setUi('homeslides', on('homeslides') ? 'off' : 'on'); syncSlides(); render(true); }));
+    p.appendChild(toggleRow('Foto-slideshow bij Live TV', 'Gedimd, zodat de zenderlijst leesbaar blijft', on('slides_live'), function () { setUi('slides_live', on('slides_live') ? 'off' : 'on'); syncSlides(); render(true); }));
     p.appendChild(choiceRow('Achtergrond', 'Kleurwas per titel, alleen de accentkleur of effen', [['wash', 'Kleurwas'], ['accent', 'Accentkleur'], ['plain', 'Effen']], store.ui('bgstyle', 'wash'), function (v) { setUi('bgstyle', v); }));
     p.appendChild(row({ title: 'Eigen achtergrondafbeelding', sub: store.ui('bgurl', '') || 'Link naar een plaatje; leeg laten voor geen', right: '›', onclick: function () { textDialog('Link naar je achtergrond (leeg = geen)', store.ui('bgurl', ''), function (t) { setUi('bgurl', t); }); } }));
     p.appendChild(toggleRow('Zenders als tegels', 'In Live TV kleine tegels in plaats van een lijst', store.ui('livegrid', 'off') === 'on', function () { setUi('livegrid', store.ui('livegrid', 'off') === 'on' ? 'off' : 'on'); }));
@@ -1927,7 +2675,14 @@
 
   function paneLive(p) {
     p.appendChild(h('h2', { text: 'Live TV & gids' }));
+    p.appendChild(choiceRow('Startscherm na 18:00', 'Andere startpagina in de avond', [['', 'Zelfde als overdag'], ['home', 'Voor jou'], ['live', 'Live TV'], ['guide', 'Gids']], store.ui('startev', ''), function (v) { setUi('startev', v); }));
+    p.appendChild(choiceRow('Zachte kijkwaarschuwing', 'Eén herinnering per dag, geen blokkade', [['0', 'Uit'], ['2', 'Na 2 uur'], ['3', 'Na 3 uur'], ['4', 'Na 4 uur']], store.ui('softlimit', '0'), function (v) { setUi('softlimit', v); }));
     p.appendChild(choiceRow('Startscherm', 'Waar de app opent', [['home', 'Voor jou'], ['live', 'Live TV'], ['guide', 'Gids']], store.ui('start', 'home'), function (v) { setUi('start', v); }));
+    p.appendChild(row({ title: 'Nieuwsrij op Home', sub: store.pref('rss') || 'Plak een RSS-link; leeg laten voor geen', right: '›', onclick: function () { textDialog('RSS-link voor nieuwskoppen', store.pref('rss'), function (t) { store.setPref('rss', t.trim()); loadNews(); render(true); }); } }));
+    p.appendChild(row({ title: 'Sportalarm', sub: store.ui('alertwords', '') || 'Namen gescheiden door komma, bijvoorbeeld Ajax, Formule 1', right: '›', onclick: function () { textDialog('Waarvoor wil je een melding? (komma\'s ertussen)', store.ui('alertwords', ''), function (t) { setUi('alertwords', t); render(true); }); } }));
+    p.appendChild(toggleRow('Dubbele zenders samenvoegen', 'HD, FHD en SD van dezelfde zender: alleen de beste in de lijst, de rest dient als reserve', store.ui('dedupelive', 'off') === 'on', function () { setUi('dedupelive', store.ui('dedupelive', 'off') === 'on' ? 'off' : 'on'); state.altIdx = null; bump(); }));
+    p.appendChild(toggleRow('Dubbele titels samenvoegen', 'Dezelfde film in meer kwaliteiten verschijnt één keer', store.ui('dedupe', 'off') === 'on', function () { setUi('dedupe', store.ui('dedupe', 'off') === 'on' ? 'off' : 'on'); bump(); }));
+    p.appendChild(toggleRow('Favorieten op tijdstip', 's Ochtends nieuws bovenaan, s avonds films', store.ui('favtime', 'on') === 'on', function () { setUi('favtime', store.ui('favtime', 'on') === 'on' ? 'off' : 'on'); }));
     p.appendChild(toggleRow('Laatste zender automatisch starten', 'Bij het openen van de app direct verder kijken', store.ui('autolive', 'off') === 'on', function () { setUi('autolive', store.ui('autolive', 'off') === 'on' ? 'off' : 'on'); }));
     p.appendChild(choiceRow('Zenders sorteren', 'In de volgorde van je lijst of op naam', [['list', 'Volgorde van lijst'], ['name', 'Op naam'], ['num', 'Op mijn eigen nummers']], store.ui('sort', 'list'), function (v) { setUi('sort', v); }));
     p.appendChild(toggleRow('Reservezender', 'Als een zender niet start, automatisch een andere versie (HD, FHD, 4K) proberen', on('backup'), function () { setUi('backup', on('backup') ? 'off' : 'on'); }));
@@ -1949,10 +2704,12 @@
   function panePlay(p) {
     p.appendChild(h('h2', { text: 'Afspelen' }));
     p.appendChild(toggleRow('Terugkijken bij live tv', 'Bewaart je live tv tot 90 minuten zodat je kunt terugspoelen. Gebruikt een tweede verbinding: niet alle aanbieders staan dat toe. Pauzeren werkt ook zonder.', store.ui('tsauto', 'off') === 'on', function () { setUi('tsauto', store.ui('tsauto', 'off') === 'on' ? 'off' : 'on'); }));
+    p.appendChild(toggleRow('Intro automatisch overslaan', 'Als je bij een aflevering Intro overslaan koos, doet de volgende aflevering het zelf op hetzelfde moment', store.ui('autointro', 'off') === 'on', function () { setUi('autointro', store.ui('autointro', 'off') === 'on' ? 'off' : 'on'); }));
     p.appendChild(choiceRow('Terugspoelen (pijl links)', 'Bij films en series', [['10', '10 seconden'], ['20', '20 seconden'], ['30', '30 seconden']], store.ui('seekBack', '10'), function (v) { setUi('seekBack', v); }));
     p.appendChild(choiceRow('Vooruitspoelen (pijl rechts)', 'Bij films en series', [['10', '10 seconden'], ['30', '30 seconden'], ['60', '1 minuut']], store.ui('seekFwd', '30'), function (v) { setUi('seekFwd', v); }));
     p.appendChild(choiceRow('Infobalk blijft zichtbaar', 'In de speler', [['3', '3 seconden'], ['5', '5 seconden'], ['8', '8 seconden'], ['12', '12 seconden']], store.ui('overlay', '5'), function (v) { setUi('overlay', v); }));
     p.appendChild(choiceRow('Voorkeur audiotaal', 'Wordt automatisch gekozen als de stream die heeft', [['', 'Standaard van de stream'], ['nl', 'Nederlands'], ['en', 'Engels'], ['de', 'Duits'], ['fr', 'Frans'], ['es', 'Spaans'], ['tr', 'Turks']], store.ui('alang', ''), function (v) { setUi('alang', v); }));
+    p.appendChild(choiceRow('Kleur van ondertitels', 'In de speler', [['wit', 'Wit'], ['geel', 'Geel'], ['groen', 'Groen'], ['cyaan', 'Cyaan']], store.ui('subcolor', 'wit'), function (v) { setUi('subcolor', v); }));
     p.appendChild(choiceRow('Grootte van ondertitels', 'In de speler', [['0.8', 'Klein'], ['1', 'Normaal'], ['1.4', 'Groot'], ['1.8', 'Extra groot']], store.ui('subsize', '1'), function (v) { setUi('subsize', v); }));
     p.appendChild(choiceRow('Voorkeur ondertiteling', 'Automatisch aan als beschikbaar', [['off', 'Uit'], ['nl', 'Nederlands'], ['en', 'Engels'], ['de', 'Duits'], ['fr', 'Frans'], ['es', 'Spaans']], store.ui('slang', 'off'), function (v) { setUi('slang', v); }));
     p.appendChild(toggleRow('Volgende aflevering automatisch', 'Na het einde van een aflevering door naar de volgende', on('autonext'), function () { setUi('autonext', on('autonext') ? 'off' : 'on'); }));
@@ -1991,6 +2748,13 @@
         });
       }
     }));
+    store.profiles().filter(function (x) { return x.kid; }).forEach(function (kp) {
+      const d = store.dayOf(kp.id, 1);
+      p.appendChild(h('h2', { text: kp.name + ' gisteren', style: { marginTop: '2rem' } }));
+      if (!d.ms) { p.appendChild(h('div', { class: 'sub', text: 'Niets gekeken' })); return; }
+      p.appendChild(h('div', { class: 'sub', text: Math.round(d.ms / 60000) + ' minuten' }));
+      d.top.forEach(function (t) { p.appendChild(h('div', { class: 'sub', text: '• ' + t[0] + ' (' + Math.round(t[1] / 60000) + ' min)' })); });
+    });
     const lw = h('input', { type: 'text', value: store.pref('lock') === '-' ? '' : (store.pref('lock') || 'xxx,adult,18+,erotic,porn'), autocapitalize: 'off', autocomplete: 'off' });
     p.appendChild(h('label', { text: 'Vergrendelde woorden in categorienamen (gescheiden door komma\'s)' }));
     p.appendChild(lw);
@@ -2017,6 +2781,7 @@
 
   function paneUpdates(p) {
     p.appendChild(h('h2', { text: 'Updates' }));
+    p.appendChild(h('div', { class: 'msg', text: 'Updates installeren alleen over de oude versie heen als ze met dezelfde sleutel zijn gebouwd. Bewaar daarom op je Mac het bestand ~/.android/debug.keystore (script: scripts/bewaar-sleutel.sh) en bouw altijd daar.' }));
     [['app', 'repo', 'Repo voor Luma TV-updates'], ['launcher', 'repoLauncher', 'Repo voor launcher-updates']].forEach(function (r) {
       const inp = h('input', { type: 'text', value: store.pref(r[1]), placeholder: updateRepo(r[0]) || 'gebruiker/repo op GitHub', autocapitalize: 'off', autocomplete: 'off' });
       inp.addEventListener('input', function () { store.setPref(r[1], inp.value.trim()); });
@@ -2028,9 +2793,40 @@
     p.appendChild(btn('Controleer op update (launcher)', function () { checkUpdate('launcher'); }, 'btn sec'));
   }
 
-  function deadCheck() {
+  /** After adding a source: try a handful of channels and report. */
+  function sourceCheck() {
+    if (!native || !native.probe) return;
+    const all = vis('live').filter(function (c) { return c.url; });
+    if (all.length < 3) return;
+    const step = Math.max(1, Math.floor(all.length / 6));
+    const sample = [];
+    for (let i = 0; i < all.length && sample.length < 6; i += step) sample.push(all[i]);
+    let ok = 0, n = 0;
+    window.lumaProbe = function (id, good) { n++; if (good) ok++; };
+    window.lumaProbeDone = function () {
+      window.lumaProbe = null;
+      openModal(h('div', { class: 'dlg' }, [
+        h('h2', { text: ok === sample.length ? 'Je bron werkt' : ok ? 'Je bron werkt gedeeltelijk' : 'Je bron reageert niet' }),
+        h('div', { class: 'sub', text: ok + ' van ' + sample.length + ' proefzenders reageerden. ' + (ok ? 'Onder Instellingen kun je alle zenders laten controleren.' : 'Controleer je gegevens of probeer later opnieuw.') }),
+        h('div', { class: 'btns' }, [btn('Sluiten', closeModal)])
+      ]));
+    };
+    native.probe(JSON.stringify(sample.map(function (c) { return { id: c.id, url: c.url }; })), (state.source && state.source.ua) || '');
+  }
+
+  function groupMenu(group) {
+    pickList(group, [['play', '▶ Groep afspelen (zappen door de groep)'], ['test', 'Groep testen en dode zenders verbergen']], '', function (v) {
+      if (v === 'play') {
+        const list = vis('live').filter(function (c) { return c.group === group; });
+        if (list.length) play(list, 0);
+      }
+      if (v === 'test') deadCheck(group);
+    });
+  }
+
+  function deadCheck(group) {
     if (!native || !native.probe) return toast('Controleren werkt alleen in de Luma TV-app');
-    const list = vis('live').filter(function (c) { return c.url; });
+    const list = vis('live').filter(function (c) { return c.url && (!group || c.group === group); });
     if (!list.length) return toast('Laad eerst een bron');
     const cap = list.slice(0, 600);
     const byId = {};
@@ -2067,20 +2863,39 @@
     p.appendChild(h('h2', { text: 'Opnames' }));
     if (!native || !native.recordings) { p.appendChild(h('div', { class: 'msg', text: 'Opnemen werkt alleen in de Luma TV-app.' })); return; }
     p.appendChild(choiceRow('Maximale lengte van een opname', 'Opnemen stopt daarna vanzelf', [['30', '30 minuten'], ['60', '1 uur'], ['120', '2 uur'], ['180', '3 uur']], store.ui('recmin', '60'), function (v) { setUi('recmin', v); }));
+    p.appendChild(choiceRow('Eerder beginnen met opnemen', 'Voor geplande opnames', [['0', 'Op tijd'], ['2', '2 minuten'], ['5', '5 minuten']], store.ui('recpre', '0'), function (v) { setUi('recpre', v); }));
+    p.appendChild(choiceRow('Later stoppen met opnemen', 'Voor geplande opnames', [['0', 'Op tijd'], ['5', '5 minuten'], ['10', '10 minuten']], store.ui('recpost', '0'), function (v) { setUi('recpost', v); }));
     p.appendChild(choiceRow('Opnames automatisch wissen', 'Oude opnames ruimen zichzelf op', [['0', 'Nooit'], ['7', 'Na 7 dagen'], ['30', 'Na 30 dagen']], store.ui('recdays', '0'), function (v) { setUi('recdays', v); }));
     recRules().forEach(function (r, i) {
       p.appendChild(row({ title: '● ' + r.title, sub: r.chName + ' · elke uitzending', right: 'Verwijderen', onclick: function () { const rs = recRules(); rs.splice(i, 1); store.setUi('recrules', JSON.stringify(rs)); render(true); } }));
     });
+    if (native.storage) {
+      try {
+        const st = JSON.parse(native.storage());
+        p.appendChild(h('div', { class: 'sub', text: 'Opslag: opnames ' + fmtSize(st.rec) + ' · timeshift ' + fmtSize(st.shift) + ' · cache ' + fmtSize(st.cache) }));
+        p.appendChild(btn('Timeshift en cache opruimen', function () { native.clearTimeshift(); native.clearCache(); toast('Opgeruimd'); render(true); }, 'btn sec'));
+      } catch (e) { /* no storage info */ }
+    }
     if (native.freeSpace) p.appendChild(h('div', { class: 'sub', text: 'Vrije ruimte voor opnames: ' + fmtSize(+native.freeSpace()) }));
     const now = native.recording();
     if (now) p.appendChild(row({ title: '● Bezig met opnemen: ' + now, sub: 'OK om te stoppen', right: 'Stoppen', onclick: function () { native.stopRecord(); toast('Opname gestopt'); setTimeout(function () { render(true); }, 600); } }));
     let list = [];
     try { list = JSON.parse(native.recordings()); } catch (e) { list = []; }
     if (!list.length) p.appendChild(h('div', { class: 'msg', text: 'Nog geen opnames. Open tijdens het kijken de actiebalk (pijl omlaag) en kies Opnemen, of houd OK ingedrukt op een programma in de gids.' }));
+    if (list.length > 1) p.appendChild(btn('▶ Alle opnames achter elkaar afspelen', function () {
+      const items = list.slice().reverse().map(function (r) {
+        const t = r.name.replace(/_\d{8}_\d{4}\.ts$/, '');
+        const id = 'rec:' + r.name;
+        state.playMeta[id] = { id: id, kind: 'vod', title: t, name: t, url: 'file://' + r.path };
+        return { id: id, title: t, url: 'file://' + r.path };
+      });
+      native.play(JSON.stringify({ live: false, index: 0, position: 0, accent: accent(), seekBack: +store.ui('seekBack', '10') * 1000, seekFwd: +store.ui('seekFwd', '30') * 1000, overlayMs: +store.ui('overlay', '5') * 1000, autoNext: true, skipMs: 85000, list: items }));
+    }, 'btn sec'));
     list.forEach(function (r) {
       const title = r.name.replace(/_\d{8}_\d{4}\.ts$/, '');
       p.appendChild(row({ title: title, sub: new Date(r.time).toLocaleString('nl-NL') + ' · ' + fmtSize(r.size), right: 'Afspelen', onclick: function () {
-        pickList(title, [['play', 'Afspelen'], ['del', 'Verwijderen']], '', function (v) {
+        pickList(title, [['play', 'Afspelen'], ['exp', 'Bewaren in galerij (Movies/Luma)'], ['del', 'Verwijderen']], '', function (v) {
+          if (v === 'exp') { toast(native.exportRecording && native.exportRecording(r.path) ? 'Bewaard in Movies/Luma' : 'Bewaren mislukt'); return; }
           if (v === 'del') { native.deleteRecording(r.path); toast('Opname verwijderd'); return render(true); }
           const id = 'rec:' + r.name;
           state.playMeta[id] = { id: id, kind: 'vod', title: title, name: title, url: 'file://' + r.path };
@@ -2090,15 +2905,62 @@
     });
   }
 
+  function paneHealth(p) {
+    p.appendChild(h('h2', { text: 'Zenders met problemen' }));
+    if (!native || !native.errorLog) { p.appendChild(h('div', { class: 'msg', text: 'Het foutlogboek werkt alleen in de Luma TV-app.' })); return; }
+    let log = [];
+    try { log = JSON.parse(native.errorLog()); } catch (e) { log = []; }
+    if (!log.length) { p.appendChild(h('div', { class: 'msg', text: 'Geen afspeelfouten gelogd. Zenders die vaak haperen verschijnen hier.' })); return; }
+    const by = {};
+    log.forEach(function (e) { const b = by[e.id] || (by[e.id] = { id: e.id, name: e.name, n: 0, last: 0, code: '' }); b.n++; b.last = Math.max(b.last, e.t); b.code = e.code; });
+    Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 25).forEach(function (b) {
+      p.appendChild(row({ title: b.name + ' · ' + b.n + '×', sub: b.code + ' · laatst ' + new Date(b.last).toLocaleString('nl-NL'), right: 'Verbergen', onclick: function () {
+        store.setChan(b.id, { hide: true });
+        toast('Verborgen: ' + b.name);
+        render(true);
+      } }));
+    });
+    p.appendChild(h('h2', { text: 'Laatste fouten', style: { marginTop: '2.4rem' } }));
+    log.slice(-8).reverse().forEach(function (e) {
+      p.appendChild(h('div', { class: 'sub', text: new Date(e.t).toLocaleTimeString('nl-NL') + ' · ' + e.name + ' · ' + e.code }));
+    });
+    p.appendChild(btn('Logboek wissen', function () { native.clearErrorLog(); toast('Logboek gewist'); render(true); }, 'btn sec'));
+  }
+
+  function restoreFrom(path) {
+    const t = native.readText(path);
+    if (!t || t.charAt(0) !== '{') return toast('Geen back-up gevonden');
+    try { JSON.parse(t); } catch (e) { return toast('De back-up is beschadigd'); }
+    localStorage.setItem('luma.v1', t);
+    toast('Teruggezet: de app start opnieuw');
+    setTimeout(function () { location.reload(); }, 800);
+  }
+
   function paneMaint(p) {
     p.appendChild(h('h2', { text: 'Onderhoud' }));
+    p.appendChild(row({ title: '👪 Kijktijd per profiel', sub: 'Deze week, voor iedereen in huis', right: '›', onclick: familyWeek }));
     p.appendChild(row({ title: '📅 Jouw jaaroverzicht', sub: 'Kijktijd en meest bekeken dit jaar', right: '›', onclick: function () { state.sub = 'year'; render(); } }));
     if (native && native.saveText) {
       p.appendChild(btn('Back-up maken', function () {
         const ok = native.saveText('luma-backup.json', localStorage.getItem('luma.v1') || '{}');
         toast(ok ? 'Back-up staat in de map van de app (backup/luma-backup.json)' : 'Back-up maken mislukt');
       }, 'btn sec'));
+      p.appendChild(btn('Zenderlijst exporteren', function () {
+        const ch = state.lib ? vis('live') : [];
+        const favs = ch.filter(function (c) { return store.isFav(c.id); });
+        const use = favs.length ? favs : ch;
+        const txt = '#EXTM3U\n' + use.map(function (c) { return '#EXTINF:-1 tvg-logo="' + (c.logo || '') + '" group-title="' + (c.group || '') + '",' + c.name + '\n' + c.url; }).join('\n') + '\n';
+        toast(native.saveText('luma-zenders.m3u', txt) ? use.length + ' zenders bewaard in backup/luma-zenders.m3u' : 'Exporteren mislukt');
+      }, 'btn sec'));
       p.appendChild(btn('Back-up terugzetten', function () {
+        let files = [];
+        try { files = native.backups ? JSON.parse(native.backups()) : []; } catch (e) { files = []; }
+        if (files.length > 1) {
+          return pickList('Welke back-up?', files.slice(0, 8).map(function (f) { return [f.path, f.name.replace(/^luma-backup-?/, '').replace('.json', '') || 'laatste handmatige']; }).map(function (x, i) { return [x[0], new Date(files[i].time).toLocaleString('nl-NL') + ' · ' + x[1]]; }), '', function (path) { restoreFrom(path); });
+        }
+        restoreFrom(native.backupPath());
+      }, 'btn sec'));
+      p.appendChild(btn('Terugzetten van het laatste bestand', function () {
         const t = native.readText(native.backupPath());
         if (!t || t.charAt(0) !== '{') return toast('Geen back-up gevonden');
         try { JSON.parse(t); } catch (e) { return toast('De back-up is beschadigd'); }
@@ -2123,7 +2985,7 @@
 
   function paneForYou(p) {
     p.appendChild(h('h2', { text: 'Wat staat er op "Voor jou"? (dit profiel)' }));
-    const base = [['cont', 'Verder kijken'], ['fav', 'Mijn favoriete zenders'], ['live', 'Nu op tv'], ['list', 'Mijn lijst'], ['because', 'Omdat je iets keek'], ['vod', 'Films'], ['series', 'Series'], ['family', 'Wat het gezin kijkt']];
+    const base = [['cont', 'Verder kijken'], ['livenow', 'Live en straks'], ['mymatches', 'Jouw wedstrijden'], ['sportlive', 'Sport live'], ['groups', 'Groepen'], ['weekly', 'Jouw week'], ['next', 'Volgende aflevering'], ['good', 'Nu iets goeds op tv'], ['tvfilms', 'Aankomende films op tv'], ['evening', 'Film van de avond'], ['shared', 'Samen kijken'], ['both', 'Omdat jullie dit samen keken'], ['news', 'Nieuws'], ['week', 'Gezien deze week'], ['fresh', 'Nieuw toegevoegd'], ['fav', 'Mijn favoriete zenders'], ['live', 'Nu op tv'], ['list', 'Mijn lijst'], ['because', 'Omdat je iets keek'], ['vod', 'Films'], ['series', 'Series'], ['family', 'Wat het gezin kijkt']];
     const custom = crows().map(function (r) { return [r.key, '📌 ' + r.name, r]; });
     const all = base.concat(custom);
     const order = store.ui('rowsorder', '').split(',').filter(Boolean);
@@ -2210,18 +3072,51 @@
   }
 
   function whatsNew() {
-    openModal(h('div', { class: 'dlg' }, [h('h2', { text: 'Nieuw in Luma TV ' + (native ? native.version() : '') }),
-      h('ul', { class: 'wn' }, VERSION_NOTES.map(function (n) { return h('li', { text: n }); })),
-      h('div', { class: 'btns' }, [btn('Mooi', closeModal)])]));
+    const seen = store.pref('wnseen') || '0';
+    const fresh = RELEASES.filter(function (r) { return newerThan(r[0], seen); });
+    const shown = (fresh.length ? fresh : RELEASES.slice(0, 1)).slice(0, 5);
+    const kids = [h('h2', { text: 'Nieuw in Luma TV ' + (native ? native.version() : '') })];
+    shown.forEach(function (r) {
+      kids.push(h('h3', { text: 'Versie ' + r[0] }));
+      kids.push(h('ul', { class: 'wn' }, r[1].map(function (n) { return h('li', { text: n }); })));
+    });
+    kids.push(h('div', { class: 'btns' }, [btn('Mooi', function () { store.setPref('wnseen', RELEASES[0][0]); closeModal(); })]));
+    openModal(h('div', { class: 'dlg', style: { maxHeight: '80vh', overflow: 'auto' } }, kids));
   }
 
   function reportProblem() {
     const src = state.source ? (state.source.type + ' · ' + (state.source.name || '')) : 'geen bron';
-    const txt = 'Luma TV ' + (native ? native.version() : '?') + '\nBron: ' + src + '\nLaatste fout: ' + (state.lastError || 'geen') +
-      '\nZenders: ' + (state.lib ? state.lib.live.length : 0) + ', films: ' + (state.lib ? state.lib.vod.length : 0) + ', series: ' + (state.lib ? state.lib.series.length : 0) + '\nGids: ' + (state.epg ? state.epg.size : 0) + ' zenders';
-    openModal(h('div', { class: 'dlg' }, [h('h2', { text: 'Probleem melden' }),
-      h('p', { text: 'Dit zijn de technische gegevens zonder inloggegevens. Geef ze door als je hulp vraagt of een melding maakt op GitHub.' }),
-      h('pre', { class: 'rep', text: txt }), h('div', { class: 'btns' }, [btn('Sluiten', closeModal)])]));
+    const lines = ['Luma TV ' + (native ? native.version() : '?'), 'Bron: ' + src, 'Laatste fout: ' + (state.lastError || 'geen'),
+      'Zenders: ' + (state.lib ? state.lib.live.length : 0) + ', films: ' + (state.lib ? state.lib.vod.length : 0) + ', series: ' + (state.lib ? state.lib.series.length : 0),
+      'Gids: ' + (state.epg ? state.epg.size : 0) + ' zenders', 'Geladen in: ' + (state.loadMs ? state.loadMs + ' ms' : '?'),
+      'Scherm: ' + window.innerWidth + 'x' + window.innerHeight, 'Browser: ' + (navigator.userAgent.match(/Chrome\/[\d.]+/) || ['?'])[0]];
+    if (native && native.errorLog) {
+      try {
+        const log = JSON.parse(native.errorLog());
+        const by = {};
+        log.forEach(function (e) { by[e.name] = by[e.name] || { n: 0, code: e.code }; by[e.name].n++; by[e.name].code = e.code; });
+        const top = Object.keys(by).sort(function (a, b) { return by[b].n - by[a].n; }).slice(0, 6);
+        lines.push('Afspeelfouten (' + log.length + '): ' + (top.length ? top.map(function (k) { return k + ' ' + by[k].n + '× ' + by[k].code; }).join('; ') : 'geen'));
+      } catch (e) { lines.push('Afspeelfouten: onleesbaar'); }
+    }
+    const txt = lines.join('\n');
+    const kids = [h('h2', { text: 'Probleem melden' }),
+      h('p', { text: 'Dit zijn de technische gegevens, zonder inloggegevens. Open het adres hieronder op je telefoon om de tekst te kopiëren en door te sturen.' }),
+      h('pre', { class: 'rep', text: txt })];
+    if (native && native.setReport && native.startRemote) {
+      native.setReport(txt);
+      let url = state.remote && state.remote.url;
+      if (!url) { url = native.startRemote(); if (url) state.remote = { url: url, svg: native.qr(url) }; }
+      if (url) {
+        const link = url.replace(/\/$/, '') + '/rapport';
+        const pic = h('div', { class: 'qr' });
+        pic.innerHTML = native.qr(link);
+        kids.push(pic, h('div', { class: 'sub', style: { wordBreak: 'break-all' }, text: 'Rapport op je telefoon: ' + link }));
+      }
+    }
+    if (native && native.saveText) native.saveText('luma-rapport.txt', txt);
+    kids.push(h('div', { class: 'btns' }, [btn('Sluiten', closeModal)]));
+    openModal(h('div', { class: 'dlg' }, kids));
   }
 
   function paneCats() {
@@ -2249,10 +3144,12 @@
       items.push(['rem', store.hasReminder(c.id, p.start) ? '🔔 Herinnering verwijderen' : '🔔 Herinnering zetten']);
       items.push(['weekly', '🔁 Elke week herinneren']);
     }
+    if (store.pref('tmdb')) items.push(['cast', 'Acteurs en regisseur']);
     if (native && native.record) items.push(['rec', isNow ? '● Nu opnemen' : '● Opnemen plannen']);
     if (native && native.record) items.push(['rule', '● Elke uitzending van dit programma opnemen']);
     pickList(p.title, items, '', function (v) {
       const base = { chId: c.id, chName: c.name, title: p.title, start: p.start, end: p.stop };
+      if (v === 'cast') return showCast({ name: p.title, kind: p.cat && catOf(p.cat) === 'Serie' ? 'series' : 'vod' });
       if (v === 'catch') return playCatchup(c, p);
       if (v === 'watch') { const l = vis('live'); return play(l, l.indexOf(c)); }
       if (v === 'rem') { const set = store.toggleReminder(base); toast(set ? '🔔 Herinnering om ' + U.clock(p.start) : 'Herinnering verwijderd'); }
@@ -2364,7 +3261,7 @@
     stopRemote();
     toast('Gegevens ontvangen van je telefoon');
     const saved = store.addSource(clean);
-    loadSource(saved, true).then(function () { if (state.lib) go('home'); else render(); });
+    loadSource(saved, true).then(function () { if (state.lib) { go('home'); setTimeout(sourceCheck, 800); } else render(); });
   };
 
   function saveForm() {
@@ -2396,11 +3293,14 @@
     const cols = keepFocus ? Array.prototype.map.call(document.querySelectorAll('.lcol'), function (e) { return e.scrollTop; }) : [];
     navEl.textContent = '';
     const tab = function (id, label, ic) {
-      return h('button', { class: 'tab' + (ic ? ' icon' : '') + (state.view === id ? ' on' : ''), type: 'button', onclick: function () { go(id); } }, ic ? [icon(ic)] : [label]);
+      const t = h('button', { class: 'tab' + (ic ? ' icon' : '') + (state.view === id ? ' on' : ''), type: 'button', onclick: function () { go(id); } }, ic ? [icon(ic)] : [label]);
+      if (id === 'home') t._lp = quickMenu;
+      return t;
     };
     navEl.appendChild(tab('search', '', 'search'));
     const hasRadio = state.lib && vis('live').some(isRadio);
-    NAV.forEach(function (n) { if (n[0] !== 'radio' || hasRadio) navEl.appendChild(tab(n[0], n[1])); });
+    const hasSport = state.lib && on('nav_sport') && sportList().length > 0;
+    NAV.forEach(function (n) { if ((n[0] !== 'radio' || hasRadio) && (n[0] !== 'sport' || hasSport)) navEl.appendChild(tab(n[0], n[1])); });
     navEl.appendChild(tab('settings', '', 'settings'));
     setHero({ title: '', key: 'luma' });
     let v;
@@ -2408,6 +3308,7 @@
     else if (state.view === 'live') v = vLive();
     else if (state.view === 'radio') v = vRadio();
     else if (state.view === 'guide') v = vGuide();
+    else if (state.view === 'sport') v = vSport();
     else if (state.view === 'vod') v = vShelf('vod', 'films', 'Films');
     else if (state.view === 'series') v = vShelf('series', 'series', 'Series');
     else if (state.view === 'search') v = vSearch();
@@ -2420,6 +3321,7 @@
     else if (banner.length) { const hero = v.querySelector('.hero'); banner.forEach(function (b) { if (hero) hero.appendChild(b); }); }
     viewEl.textContent = '';
     viewEl.appendChild(v);
+    syncSlides();
     viewEl.scrollTop = keepScroll;
     const newG = document.querySelector('.gscroll');
     if (newG && oldG) { newG.scrollLeft = gx; newG.scrollTop = gy; }
@@ -2655,7 +3557,22 @@
   };
 
   // ---------- start ----------
+  function startView() {
+    return (new Date().getHours() >= 18 && store.ui('startev', '')) ? store.ui('startev') : store.ui('start', 'home');
+  }
+
+  function softLimit() {
+    const h2 = +store.ui('softlimit', '0');
+    if (!h2) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (store.ui('softday', '') === today) return;
+    if (store.statsFor(1).total < h2 * 3600000 || modalOpen()) return;
+    setUi('softday', today);
+    openModal(h('div', { class: 'dlg' }, [h('h2', { text: 'Je kijkt al ' + h2 + ' uur vandaag' }), h('div', { class: 'sub', text: 'Misschien tijd voor een pauze? Dit is alleen een herinnering.' }), h('div', { class: 'btns' }, [btn('Ik kijk door', closeModal), btn('Slaaptimer 15 min', function () { closeModal(); toast('Zet in de speler de slaaptimer aan met de actiebalk'); }, 'btn sec')])]));
+  }
+
   function tick() {
+    softLimit();
     const d = new Date();
     $('clock').textContent = U.pad(d.getHours()) + ':' + U.pad(d.getMinutes());
     if (store.ui('theme', 'dark') === 'auto') applyTheme();
@@ -2665,7 +3582,7 @@
     applyTheme();
     const tg = document.querySelector('#intro .tagl');
     if (tg) tg.textContent = 'Welkom, ' + store.profile().name;
-    state.view = store.ui('start', 'home');
+    state.view = startView();
     const src = store.active();
     if (store.profiles().length > 1 && store.pref('ask') !== 'off' && !document.querySelector('.who')) showWho(true);
     if (src) loadSource(src, false);
@@ -2682,11 +3599,128 @@
     } catch (e) { /* nothing to clean */ }
   }
 
+  function quickMenu() {
+    pickList('Snel naar', [['surprise', '🎲 Verras me met een zender'], ['recent', '⟲ Laatste zenders'], ['live', 'Live TV'], ['guide', 'Gids'], ['rec', 'Opnames'], ['health', 'Zenders en fouten'], ['set', 'Instellingen'], ['who', 'Van profiel wisselen']], '', function (v) {
+      if (v === 'surprise') return surprise();
+      if (v === 'recent') {
+        const l = vis('live');
+        const rc = store.recent().map(function (id) { return l.filter(function (c) { return c.id === id; })[0]; }).filter(Boolean).slice(0, 10);
+        if (!rc.length) return toast('Nog geen zenders bekeken');
+        return pickList('Laatste zenders', rc.map(function (c, i) { return [String(i), c.name]; }), '', function (n) { play(l, l.indexOf(rc[+n])); });
+      }
+      if (v === 'rec' || v === 'health') { state.setTab = v; return go('settings'); }
+      if (v === 'set') return go('settings');
+      if (v === 'who') return showWho(true);
+      go(v);
+    });
+  }
+
+  function applyCalm() {
+    const z = +store.ui('fontscale', '1') || 1;
+    document.body.style.zoom = z === 1 ? '' : String(z);
+    document.body.classList.toggle('calm', store.ui('calm', 'off') === 'on');
+  }
+  setInterval(applyCalm, 15000);
+
+  function nightRange() {
+    const f = +store.ui('nightfrom', '-1');
+    const t = +store.ui('nightto', '7');
+    return f >= 0 ? [f, t] : null;
+  }
+  function applyNightLook() {
+    const r = nightRange();
+    const hr = new Date().getHours();
+    const inside = r && (r[0] <= r[1] ? hr >= r[0] && hr < r[1] : hr >= r[0] || hr < r[1]);
+    document.body.classList.toggle('warm', !!inside);
+  }
+  setInterval(applyNightLook, 60000);
+
+  function alertWords() { return store.ui('alertwords', '').split(',').map(function (x) { return fold(x.trim()); }).filter(Boolean); }
+  const alerted = {};
+  function checkAlerts() {
+    const words = alertWords();
+    if (!words.length || !state.lib || !state.epg || !state.epg.size || modalOpen()) return;
+    const now = Date.now();
+    const list = vis('live');
+    for (let i = 0; i < list.length && i < 3000; i++) {
+      const c = list[i];
+      const pr = state.epg.forChannel(c);
+      for (let j = 0; j < pr.length; j++) {
+        const p = pr[j];
+        if (p.start < now || p.start - now > 10 * 60000) continue;
+        const key = c.id + '|' + p.start;
+        if (alerted[key]) continue;
+        const t = fold(p.title);
+        if (!words.some(function (w) { return t.indexOf(w) >= 0; })) continue;
+        alerted[key] = 1;
+        chime();
+        openModal(h('div', { class: 'dlg' }, [
+          h('h2', { text: p.title }),
+          h('div', { class: 'sub', text: c.name + ' · begint om ' + U.clock(p.start) }),
+          h('div', { class: 'btns' }, [btn('Nu kijken', function () { closeModal(); play(list, i); }), btn('Later', closeModal, 'btn sec')])
+        ]));
+        return;
+      }
+    }
+  }
+  setInterval(checkAlerts, 60000);
+
+  function familyWeek() {
+    const rows = store.statsAll(7).sort(function (a, b) { return b.ms - a.ms; });
+    openModal(h('div', { class: 'dlg' }, [h('h2', { text: 'Kijktijd deze week' })].concat(rows.map(function (r) {
+      return h('div', { class: 'sub', text: r.name + ': ' + (r.ms >= 3600000 ? (r.ms / 3600000).toFixed(1) + ' uur' : Math.round(r.ms / 60000) + ' min') + (r.top ? ' · meest ' + r.top : '') });
+    })).concat([h('div', { class: 'btns' }, [btn('Sluiten', closeModal)])])));
+  }
+
+  async function loadNews() {
+    const url = store.pref('rss');
+    if (!url) { state.news = []; return; }
+    try {
+      const t = await fetchText(url, 1800);
+      const doc = new DOMParser().parseFromString(t, 'text/xml');
+      const items = Array.prototype.slice.call(doc.querySelectorAll('item, entry')).slice(0, 15);
+      state.news = items.map(function (it) {
+        const g = function (n) { const e = it.querySelector(n); return e ? e.textContent.trim() : ''; };
+        return { title: g('title'), desc: g('description').replace(/<[^>]*>/g, '').slice(0, 400) || g('summary'), src: (doc.querySelector('channel > title, feed > title') || {}).textContent || 'Nieuws' };
+      }).filter(function (n) { return n.title; });
+      if (state.view === 'home') render(true);
+    } catch (e) { state.news = []; }
+  }
+
+  /** Looks for things that are quietly wrong and says so, instead of failing without a word. */
+  function selfCheck() {
+    const issues = [];
+    ['LumaMeta', 'LumaStore'].forEach(function (n) { if (!window[n]) issues.push('Onderdeel ' + n + ' is niet geladen'); });
+    if (state.corrupt) issues.push('Je opgeslagen gegevens waren beschadigd en zijn leeg gestart' + (native && native.backups ? ': zet een back-up terug onder Onderhoud' : ''));
+    if (native) {
+      ['play', 'version', 'probe', 'record', 'saveText'].forEach(function (f) { if (typeof native[f] !== 'function') issues.push('De app mist de functie ' + f + ': installeer de nieuwste versie opnieuw'); });
+    }
+    if (store.active() && !store.sources().some(function (x) { return x.id === store.active().id; })) issues.push('De gekozen bron bestaat niet meer');
+    if (!issues.length) return;
+    state.lastError = issues.join('; ');
+    if (!modalOpen()) openModal(h('div', { class: 'dlg' }, [h('h2', { text: 'Zelfcontrole' })].concat(issues.map(function (t) { return h('div', { class: 'sub', text: '• ' + t }); })).concat([h('div', { class: 'btns' }, [btn('Sluiten', closeModal)])])));
+  }
+
   function startupChecks() {
+    setTimeout(selfCheck, 2500);
+    loadNews();
+    applyNightLook();
+    applyCalm();
+    if (native && native.saveText && native.pruneBackups) {
+      const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      if (store.pref('bakday') !== day) {
+        store.setPref('bakday', day);
+        native.saveText('luma-backup-' + day + '.json', localStorage.getItem('luma.v1') || '{}');
+        native.pruneBackups('luma-backup-', 5);
+      }
+    }
     cleanRecordings();
     const ver = native ? native.version() : '';
     if (ver && store.pref('ver') !== ver) {
-      if (store.pref('ver')) whatsNew();
+      if (store.pref('ver') || !store.pref('wnseen')) {
+        if (native && native.saveText) native.saveText('luma-backup.json', localStorage.getItem('luma.v1') || '{}');
+        whatsNew();
+      }
       store.setPref('ver', ver);
     }
     const today = new Date().toISOString().slice(0, 10);

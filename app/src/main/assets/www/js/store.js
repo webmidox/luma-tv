@@ -190,6 +190,13 @@
       },
 
       recent: function () { return cur().recent; },
+      /** The title a profile watched most recently, or ''. */
+      lastOf: function (pid) {
+        const d = st.data[pid];
+        if (!d) return '';
+        const e = Object.keys(d.progress || {}).map(function (k) { return d.progress[k]; }).filter(function (x) { return x && x.kind !== 'live' && x.title; }).sort(function (x, y) { return (y.ts || 0) - (x.ts || 0); })[0];
+        return e ? (e.showName || e.title) : '';
+      },
       /** What the other profiles watched last: [{name, recent, cont}]. */
       others: function () {
         return st.profiles.filter(function (p) { return p.id !== st.profile && st.data[p.id]; }).map(function (p) {
@@ -243,10 +250,52 @@
         return i < 0;
       },
       /** Reminders that start within windowMs and were not shown yet; they are marked shown. Old ones are dropped. */
-      dueReminders: function (now, windowMs) {
+      /** Minutes watched per profile over the last n days: [{name, ms, top}]. */
+      statsAll: function (days) {
+        const end = Date.now();
+        return st.profiles.map(function (p) {
+          const d = st.data[p.id];
+          const s = (d && d.stats) || {};
+          let ms = 0;
+          const by = {};
+          for (let i = 0; i < days; i++) {
+            const e = s[new Date(end - i * 86400000).toISOString().slice(0, 10)];
+            if (!e) continue;
+            ms += e.ms;
+            Object.keys(e.by).forEach(function (l) { by[l] = (by[l] || 0) + e.by[l]; });
+          }
+          const top = Object.keys(by).sort(function (x, y) { return by[y] - by[x]; })[0] || '';
+          return { name: p.name, ms: ms, top: top };
+        });
+      },
+      /** Films and series that two or more profiles have watched. */
+      overlap: function () {
+        const count = {};
+        st.profiles.forEach(function (p) {
+          const d = st.data[p.id];
+          if (!d || !d.progress) return;
+          const mine = {};
+          Object.keys(d.progress).forEach(function (k) {
+            const e = d.progress[k];
+            if (!e || e.kind === 'live' || !(e.pos > 60000)) return;
+            mine[e.kind === 'series' ? e.showId : e.id] = 1;
+          });
+          Object.keys(d.watched || {}).forEach(function (k) { mine[k] = 1; });
+          Object.keys(mine).forEach(function (k) { if (k) count[k] = (count[k] || 0) + 1; });
+        });
+        return Object.keys(count).filter(function (k) { return count[k] >= 2; });
+      },
+      /** What one profile watched on a day (0 = today, 1 = yesterday): {ms, top: [[label, ms]]}. */
+      dayOf: function (pid, back) {
+        const d = st.data[pid];
+        const e = d && d.stats ? d.stats[new Date(Date.now() - back * 86400000).toISOString().slice(0, 10)] : null;
+        if (!e) return { ms: 0, top: [] };
+        return { ms: e.ms, top: Object.keys(e.by).sort(function (x, y) { return e.by[y] - e.by[x]; }).slice(0, 6).map(function (k) { return [k, e.by[k]]; }) };
+      },
+      dueReminders: function (now, windowMs, recExtra) {
         const d = cur();
         d.reminders = d.reminders.filter(function (r) { return r.start > now - 3600000; });
-        const due = d.reminders.filter(function (r) { return !r.fired && r.start - now <= windowMs; });
+        const due = d.reminders.filter(function (r) { return !r.fired && r.start - now <= windowMs + (r.rec ? recExtra || 0 : 0); });
         due.forEach(function (r) {
           r.fired = true;
           if (r.weekly) d.reminders.push({ chId: r.chId, chName: r.chName, title: r.title, start: r.start + 7 * 86400000, end: r.end ? r.end + 7 * 86400000 : 0, rec: !!r.rec, weekly: true, fired: false });

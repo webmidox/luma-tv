@@ -27,6 +27,7 @@
     if (!r) return null;
     const date = r.release_date || r.first_air_date || '';
     return {
+      id: r.id || 0,
       backdrop: r.backdrop_path ? IMG + 'w1280' + r.backdrop_path : '',
       poster: r.poster_path ? IMG + 'w500' + r.poster_path : '',
       overview: r.overview || '',
