@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.43', ['Profielkeuze komt altijd na het laadscherm (uit te zetten in Instellingen)', 'Live en straks en Sport live staan meteen goed, ook als er een melding open stond']],
     ['0.42', ['Nieuw laadscherm met foto en zwart verloop: wacht tot zenders, gids en sport klaar zijn', 'Daarna pas de profielkeuze, en Voor jou is meteen compleet']],
     ['0.41', ['Momentopname van wat er nu op tv is in de live-kaarten, ipv het logo (een voor een op de achtergrond, 10 minuten bewaard)']],
     ['0.40', ['Live beeld in de geselecteerde live-kaart (gedempt, na 1,5 seconde)', 'Uit te zetten bij Instellingen > Uiterlijk > Live beeld in kaarten']],
@@ -170,6 +171,7 @@
     const next = function () {
       if (state.askWho && !document.querySelector('.who')) showWho(true);
       state.askWho = false;
+      setTimeout(startupChecks, 3500);
     };
     if (!el) { next(); return; }
     introStatus('Klaar');
@@ -560,6 +562,7 @@
     modalEl.onkeydown = null;
     if (modalReturn && modalReturn.isConnected) modalReturn.focus({ preventScroll: true });
     modalReturn = null;
+    if (state.stale) { state.stale = false; if (state.view === 'home' || state.view === 'sport') render(true); }
   }
 
   const modalOpen = function () { return !modalEl.hidden; };
@@ -726,7 +729,7 @@
       buildEpg();
       introStatus('Sport klaarzetten…');
       applyRecRules();
-      if (!modalOpen() && (state.view === 'home' || state.view === 'live' || state.view === 'guide')) render(true);
+      if (state.view === 'home' || state.view === 'live' || state.view === 'guide') { if (modalOpen()) state.stale = true; else render(true); }
       sportList();
     } catch (e) {
       // The guide is optional; channels still work without it.
@@ -1808,8 +1811,9 @@
         const hadAny = sportBuild.list.length > 0;
         sportBuild.list = out;
         sportBuild.busy = false;
-        if (state.view === 'sport' && !modalOpen()) render(true);
-        else if (state.view === 'home' && !intro.done && !modalOpen()) render(true);
+        if ((state.view === 'sport' || state.view === 'home') && modalOpen()) state.stale = true;
+        else if (state.view === 'sport') render(true);
+        else if (state.view === 'home' && (!intro.done || !hadAny) && out.length) render(true);
         else if (!hadAny && out.length) buildNav();
         introDone();
       } catch (e) {
@@ -2677,7 +2681,7 @@
       p.appendChild(row({ lead: avatar(pr), title: pr.name + (pr.id === store.profile().id ? ' (actief)' : ''), sub: pr.kid ? 'Kinderprofiel' : 'Eigen favorieten, voortgang en uiterlijk', onclick: function () { profileDialog(pr); } }));
     });
     p.appendChild(btn('+ Profiel toevoegen', function () { profileDialog(null); }, 'btn sec'));
-    p.appendChild(toggleRow('Vraag bij het opstarten wie er kijkt', 'Alleen zinvol bij meer dan één profiel', store.pref('ask') !== 'off', function () {
+    p.appendChild(toggleRow('Vraag bij het opstarten wie er kijkt', 'Toont de profielkeuze bij elke start, ook met één profiel', store.pref('ask') !== 'off', function () {
       store.setPref('ask', store.pref('ask') === 'off' ? 'on' : 'off');
       render(true);
     }));
@@ -3849,11 +3853,10 @@
     if (tg) tg.textContent = 'Welkom, ' + store.profile().name;
     state.view = startView();
     const src = store.active();
-    state.askWho = store.profiles().length > 1 && store.pref('ask') !== 'off';
+    state.askWho = store.pref('ask') !== 'off';
     if (src) loadSource(src, false);
     else { render(); introDone(); }
     setTimeout(function () { introDone(true); }, 45000);
-    setTimeout(startupChecks, 6000);
   }
 
   function cleanRecordings() {

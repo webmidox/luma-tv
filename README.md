@@ -8,6 +8,11 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.43: Profielkeuze en startscherm
+
+- Profielkeuze verschijnt na het laadscherm, ook met een profiel (Instellingen > Profielen: 'Vraag bij het opstarten wie er kijkt').
+- Startmeldingen (zoals Wat is nieuw) wachten tot het laadscherm weg is; een scherm dat intussen verouderd raakte wordt na sluiten van een melding ververst.
+
 ## 0.42: Laadscherm
 
 - Laadscherm met foto (`img/loading.jpg`) en zwart verloop; blijft staan tot zenders, programmagids en sportlijst klaar zijn (max 45 s).
