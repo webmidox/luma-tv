@@ -405,3 +405,7 @@ body.calm *{transition:none!important;animation:none!important}
 #slides .sl.show{opacity:1}
 #slides::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,8,12,.6) 0%,rgba(8,8,12,.25) 40%,rgba(8,8,12,0) 70%)}
 #slides.dim::after{background:linear-gradient(90deg,rgba(8,8,12,.82) 0%,rgba(8,8,12,.74) 50%,rgba(8,8,12,.8) 100%)}
+
+/* bovenbalk: effen zwart over de hele breedte, zoals het Ziggo-ontwerp; alleen de selectiekleur blijft */
+#top:before { left: -10rem; right: -10rem; top: -3.6rem; bottom: 0; background: #000; opacity: 1 !important; }
+#nav { background: none; padding: 0; border-radius: 0; }

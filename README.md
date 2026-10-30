@@ -8,6 +8,12 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.37: Bovenbalk en foto's
+
+- Bovenbalk effen zwart over de volle breedte (Ziggo-ontwerp), oranje selectie blijft.
+- Slideshow Voor jou met 5 scherpere foto's (1920 breed).
+- Het label LIVE bovenin de hero is weg; geen achtergrond-animatie meer bij het scrollen terwijl de slideshow draait; de Sport-tab verschijnt zonder het scherm opnieuw te tekenen.
+
 ## 0.36: Sport zonder vastlopen
 
 - De sport-hub scant zenders nu op de achtergrond in kleine stukjes, zodat grote IPTV-lijsten het scherm niet meer vastzetten. De Sport-tab verschijnt als het klaar is.

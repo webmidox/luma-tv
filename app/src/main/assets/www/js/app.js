@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.37', ['Bovenbalk weer effen zwart over de hele breedte, met de oranje selectie', 'Nieuwe, scherpere foto\'s in de slideshow op Voor jou', 'Het label LIVE bovenin de hero is weg; minder gespring bij het scrollen']],
     ['0.36', ['Sport op de achtergrond opgebouwd in kleine stukjes: geen vastlopen meer bij grote IPTV-lijsten']],
     ['0.35', ['Live TV: eigen fotoslideshow op de achtergrond (gedimd voor leesbaarheid), apart uit te zetten bij Uiterlijk']],
     ['0.34', ['Voor jou: slideshow met 5 foto\'s (nieuwe Spider-Man, The Walking Dead en basketbal erbij)']],
@@ -371,7 +372,8 @@
     if (fill) fill.classList.remove('on');
     bd.classList.remove('photo', 'poster', 'logo');
     const seed = info.key || info.title;
-    if (setHero.last !== seed && on('effects')) {
+    const slidesOn = !!(document.getElementById('slides') && document.getElementById('slides').classList.contains('on'));
+    if (setHero.last !== seed && on('effects') && !slidesOn) {
       setHero.last = seed;
       bd.classList.remove('fade'); void bd.offsetWidth; bd.classList.add('fade');
     }
@@ -384,13 +386,13 @@
     else if (bgs === 'accent' || !info.title) bd.style.backgroundImage = 'radial-gradient(70rem 50rem at 85% 5%, ' + rgba(accent(), 0.22) + ', transparent)';
     else bd.style.backgroundImage = wash(seed);
     const set = function (id, t) { const e = $(id); if (e) e.textContent = t || ''; };
-    set('h-tag', info.tag);
+    set('h-tag', /^(NU )?LIVE$/i.test(info.tag || '') ? '' : info.tag);
     set('h-title', info.title);
     set('h-sub', info.sub);
     set('h-desc', info.desc);
     set('h-hint', info.hint);
     const hero = document.querySelector('.hero');
-    if (hero && on('effects')) { hero.classList.remove('swp'); void hero.offsetWidth; hero.classList.add('swp'); }
+    if (hero && on('effects') && !slidesOn) { hero.classList.remove('swp'); void hero.offsetWidth; hero.classList.add('swp'); }
     const tg = $('h-tag');
     if (tg) tg.classList.toggle('livetag', /LIVE/.test(info.tag || ''));
   }
@@ -1727,7 +1729,8 @@
         const hadAny = sportBuild.list.length > 0;
         sportBuild.list = out;
         sportBuild.busy = false;
-        if ((state.view === 'sport' || (!hadAny && out.length)) && !modalOpen()) render(true);
+        if (state.view === 'sport' && !modalOpen()) render(true);
+        else if (!hadAny && out.length) buildNav();
       } catch (e) {
         sportBuild.busy = false;
         if (window.console) console.error('sport', e);
@@ -3317,15 +3320,9 @@
   }
 
   // ---------- shell ----------
-  function render(keepFocus) {
-    if (!(state.view === 'settings' && state.setTab === 'sources' && !state.sub)) stopRemote();
-    const prev = keepFocus ? document.activeElement : null;
-    const prevKey = prev && prev.dataset ? prev.dataset.k : '';
-    const keepScroll = keepFocus ? viewEl.scrollTop : 0;
-    const oldG = keepFocus ? document.querySelector('.gscroll') : null;
-    const gx = oldG ? oldG.scrollLeft : 0;
-    const gy = oldG ? oldG.scrollTop : 0;
-    const cols = keepFocus ? Array.prototype.map.call(document.querySelectorAll('.lcol'), function (e) { return e.scrollTop; }) : [];
+  /** Builds the tabs at the top. Separate from render() so the Sport tab can appear without redrawing the page. */
+  function buildNav() {
+    const had = document.activeElement && navEl.contains(document.activeElement) ? Array.prototype.indexOf.call(navEl.children, document.activeElement) : -1;
     navEl.textContent = '';
     const tab = function (id, label, ic) {
       const t = h('button', { class: 'tab' + (ic ? ' icon' : '') + (state.view === id ? ' on' : ''), type: 'button', onclick: function () { go(id); } }, ic ? [icon(ic)] : [label]);
@@ -3337,6 +3334,19 @@
     const hasSport = state.lib && on('nav_sport') && sportList().length > 0;
     NAV.forEach(function (n) { if ((n[0] !== 'radio' || hasRadio) && (n[0] !== 'sport' || hasSport)) navEl.appendChild(tab(n[0], n[1])); });
     navEl.appendChild(tab('settings', '', 'settings'));
+    if (had >= 0 && navEl.children[had]) navEl.children[had].focus({ preventScroll: true });
+  }
+
+  function render(keepFocus) {
+    if (!(state.view === 'settings' && state.setTab === 'sources' && !state.sub)) stopRemote();
+    const prev = keepFocus ? document.activeElement : null;
+    const prevKey = prev && prev.dataset ? prev.dataset.k : '';
+    const keepScroll = keepFocus ? viewEl.scrollTop : 0;
+    const oldG = keepFocus ? document.querySelector('.gscroll') : null;
+    const gx = oldG ? oldG.scrollLeft : 0;
+    const gy = oldG ? oldG.scrollTop : 0;
+    const cols = keepFocus ? Array.prototype.map.call(document.querySelectorAll('.lcol'), function (e) { return e.scrollTop; }) : [];
+    buildNav();
     setHero({ title: '', key: 'luma' });
     let v;
     if (state.show && state.view === 'series') v = vShow();
