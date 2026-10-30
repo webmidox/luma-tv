@@ -8,6 +8,10 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.36: Sport zonder vastlopen
+
+- De sport-hub scant zenders nu op de achtergrond in kleine stukjes, zodat grote IPTV-lijsten het scherm niet meer vastzetten. De Sport-tab verschijnt als het klaar is.
+
 ## 0.35: Fotoslideshow bij Live TV
 
 - Live TV krijgt een eigen set van 5 foto's (gedimd). Foto's toevoegen: `SLIDESETS.live` in `js/app.js`. Apart uit te zetten bij Instellingen, Uiterlijk.

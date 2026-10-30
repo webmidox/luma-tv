@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.36', ['Sport op de achtergrond opgebouwd in kleine stukjes: geen vastlopen meer bij grote IPTV-lijsten']],
     ['0.35', ['Live TV: eigen fotoslideshow op de achtergrond (gedimd voor leesbaarheid), apart uit te zetten bij Uiterlijk']],
     ['0.34', ['Voor jou: slideshow met 5 foto\'s (nieuwe Spider-Man, The Walking Dead en basketbal erbij)']],
     ['0.33', ['Voor jou: fotoslideshow op de achtergrond, elke 10 seconden een andere foto (uit te zetten bij Instellingen, Uiterlijk)']],
@@ -1664,48 +1665,82 @@
     return m2 ? { a: m2[1].trim(), b: m2[2].trim(), comp: '' } : null;
   }
 
-  /** Which sport a programme belongs to, or '' when it is not sport. */
-  function sportOf(c, p) {
-    const s = fold(p.title + ' ' + (p.cat || ''));
-    for (let i = 0; i < SPORT_DEFS.length; i++) if (SPORT_DEFS[i][1].test(s)) return SPORT_DEFS[i][0];
-    if (p.cat && catOf(p.cat) === 'Sport') return 'Overig';
-    const flagged = store.chan(c.id).sport || /sport|espn|eurosport|viaplay|dazn/.test(fold(c.group || '') + ' ' + fold(c.name));
+  const SPORT_QUICK = new RegExp(SPORT_DEFS.map(function (d) { return d[1].source; }).join('|') + '|sport');
+  const SPORT_CHAN = /sport|espn|eurosport|viaplay|dazn/;
+
+  /** Which sport a programme belongs to, or '' when it is not sport. tl is the lowercase title and genre. */
+  function sportOf(flagged, p, tl) {
+    for (let i = 0; i < SPORT_DEFS.length; i++) if (SPORT_DEFS[i][1].test(tl)) return SPORT_DEFS[i][0];
+    if (p.cat && /sport|voetbal|football|soccer/.test(String(p.cat).toLowerCase())) return 'Overig';
     if (flagged && p.stop - p.start >= 45 * 60000) return 'Overig';
     return '';
   }
 
-  /** All sport programmes from 24 hours ago to a week ahead, sorted by start. Cached for two minutes. */
+  /**
+   * All sport programmes from 24 hours ago to a week ahead, sorted by start.
+   * Built in small slices in the background so a large source never freezes the screen;
+   * until the first build is ready the list is empty.
+   */
+  const sportBuild = { key: '', list: [], busy: false };
   function sportList() {
-    if (!state.lib || !state.epg || !state.epg.size) return [];
-    const key = state.rev + '|' + state.epg.size + '|' + Math.floor(Date.now() / 120000);
-    if (sportList.key === key) return sportList.list;
-    const now = Date.now();
-    const out = [];
-    const seen = {};
-    const chans = vis('live');
-    for (let i = 0; i < chans.length && i < 4000; i++) {
-      const c = chans[i];
-      if (isRadio(c)) continue;
-      const pr = state.epg.forChannel(c);
-      for (let j = 0; j < pr.length; j++) {
-        const p = pr[j];
-        if (p.stop < now - 86400000 || p.start > now + 7 * 86400000) continue;
-        const sp = sportOf(c, p);
-        if (!sp) continue;
-        const dk = fold(p.title) + '|' + p.start;
-        if (seen[dk]) continue;
-        seen[dk] = 1;
-        const pm = sp === 'Motorsport' || sp === 'Wielrennen' ? null : parseMatch(p.title);
-        out.push({ c: c, p: p, sport: sp, teams: pm ? [pm.a, pm.b] : null, comp: pm ? pm.comp : '' });
-      }
-    }
-    out.sort(function (a, b) { return a.p.start - b.p.start; });
-    sportList.key = key;
-    sportList.list = out;
-    return out;
+    if (!state.lib || !state.epg || !state.epg.size) return sportBuild.list;
+    const key = state.epg.size + '|' + state.lib.live.length + '|' + Math.floor(Date.now() / 600000);
+    if (sportBuild.key !== key && !sportBuild.busy) startSportBuild(key);
+    return sportBuild.list;
   }
 
-  function myTeams() { try { return JSON.parse(store.ui('myteams', '[]')); } catch (e) { return []; } }
+  function startSportBuild(key) {
+    sportBuild.busy = true;
+    sportBuild.key = key;
+    const chans = vis('live');
+    const now = Date.now();
+    const lo = now - 86400000;
+    const hi = now + 7 * 86400000;
+    const out = [];
+    const seen = {};
+    let i = 0;
+    const step = function () {
+      try {
+        const t0 = Date.now();
+        while (i < chans.length && i < 4000 && Date.now() - t0 < 20) {
+          const c = chans[i++];
+          if (isRadio(c)) continue;
+          const pr = state.epg.forChannel(c);
+          if (!pr.length) continue;
+          const flagged = !!store.chan(c.id).sport || SPORT_CHAN.test((c.group || '').toLowerCase() + ' ' + (c.name || '').toLowerCase());
+          for (let j = 0; j < pr.length; j++) {
+            const p = pr[j];
+            if (p.stop < lo || p.start > hi) continue;
+            const tl = (p.title + ' ' + (p.cat || '')).toLowerCase();
+            if (!flagged && !SPORT_QUICK.test(tl)) continue;
+            const sp = sportOf(flagged, p, tl);
+            if (!sp) continue;
+            const dk = tl + '|' + p.start;
+            if (seen[dk]) continue;
+            seen[dk] = 1;
+            const pm = sp === 'Motorsport' || sp === 'Wielrennen' ? null : parseMatch(p.title);
+            out.push({ c: c, p: p, sport: sp, teams: pm ? [pm.a, pm.b] : null, comp: pm ? pm.comp : '' });
+          }
+        }
+        if (i < chans.length && i < 4000) { setTimeout(step, 40); return; }
+        out.sort(function (x, y) { return x.p.start - y.p.start; });
+        const hadAny = sportBuild.list.length > 0;
+        sportBuild.list = out;
+        sportBuild.busy = false;
+        if ((state.view === 'sport' || (!hadAny && out.length)) && !modalOpen()) render(true);
+      } catch (e) {
+        sportBuild.busy = false;
+        if (window.console) console.error('sport', e);
+      }
+    };
+    setTimeout(step, 1500);
+  }
+
+  function myTeams() {
+    const raw = store.ui('myteams', '[]');
+    if (myTeams.raw !== raw) { myTeams.raw = raw; try { myTeams.val = JSON.parse(raw); } catch (e) { myTeams.val = []; } }
+    return myTeams.val.slice();
+  }
   function isMine(e) {
     const m = myTeams();
     if (!m.length) return false;
