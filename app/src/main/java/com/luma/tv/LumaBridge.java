@@ -24,6 +24,17 @@ final class LumaBridge {
         activity.runOnUiThread(() -> activity.startPlayer(json));
     }
 
+    /** Muted live picture on a card; position and size in device pixels. */
+    @JavascriptInterface
+    public void preview(String url, String ua, int x, int y, int w, int h, int radius) {
+        activity.previewStart(url, ua, x, y, w, h, radius);
+    }
+
+    @JavascriptInterface
+    public void previewStop() {
+        activity.previewStop();
+    }
+
     /** {line, start, end}: what is on now, for the launcher. */
     @JavascriptInterface
     public void setNow(String json) {

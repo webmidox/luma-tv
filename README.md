@@ -8,6 +8,10 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.40: Live beeld in kaarten
+
+- Op Voor jou speelt de geselecteerde live-kaart na 1,5 s gedempt het live beeld (een tegelijk, max 720p). Uitzetten: Instellingen > Uiterlijk > Live beeld in kaarten.
+
 ## 0.39: Rijen en navigatie
 
 - Rijen op Voor jou lopen door tot de schermrand, startpositie ongewijzigd.

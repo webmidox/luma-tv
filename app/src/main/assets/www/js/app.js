@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.40', ['Live beeld in de geselecteerde live-kaart (gedempt, na 1,5 seconde)', 'Uit te zetten bij Instellingen > Uiterlijk > Live beeld in kaarten']],
     ['0.39', ['Rijen lopen nu door tot de rand van het scherm, op dezelfde plek', 'Omhoog en omlaag springt niet meer een rij over (o.a. Sport live)', 'Streaming-rij voorlopig weg']],
     ['0.38', ['Voor jou compact: titel, regel eronder, twee regels beschrijving en OK = kijken', 'De rijen schuiven onder de vaste bovenkant door', 'Streaming-rij met vierkante tegels (Netflix, Videoland, Prime enz.) uit de groepen op je server', 'Zwartere slideshow onderaan en bovenaan']],
     ['0.37', ['Bovenbalk weer effen zwart over de hele breedte, met de oranje selectie', 'Nieuwe, scherpere foto\'s in de slideshow op Voor jou', 'Het label LIVE bovenin de hero is weg; minder gespring bij het scrollen']],
@@ -1020,6 +1021,7 @@
       lp: function () { channelMenu(c); }
     });
     if (!photo && nn.now) liveArt(el, nn.now.title, nn.now.cat, c.logo);
+    if (c.url && !isRadio(c)) el._pv = c.url;
     return el;
   }
 
@@ -2671,6 +2673,7 @@
     p.appendChild(toggleRow('Rustige modus', 'Geen animaties en overgangen', store.ui('calm', 'off') === 'on', function () { setUi('calm', store.ui('calm', 'off') === 'on' ? 'off' : 'on'); applyCalm(); }));
     p.appendChild(toggleRow('Seizoensthema', 'Kerst, oud en nieuw en Koningsdag krijgen een eigen accentkleur', store.ui('season', 'off') === 'on', function () { setUi('season', store.ui('season', 'off') === 'on' ? 'off' : 'on'); }));
     p.appendChild(choiceRow('Doorzichtigheid van de bovenbalk', 'Hoe sterk de balk bovenin de rij eronder verbergt', [['1', 'Dicht'], ['0.6', 'Half'], ['0.3', 'Bijna doorzichtig'], ['0', 'Doorzichtig']], store.ui('topalpha', '1'), function (v) { setUi('topalpha', v); }));
+    p.appendChild(toggleRow('Live beeld in kaarten', 'Blijf je even op een live-kaart staan, dan speelt het beeld gedempt', on('livepv'), function () { setUi('livepv', on('livepv') ? 'off' : 'on'); previewStop(); }));
     p.appendChild(toggleRow('Foto-slideshow op Voor jou', 'Elke 10 seconden een andere foto', on('homeslides'), function () { setUi('homeslides', on('homeslides') ? 'off' : 'on'); syncSlides(); render(true); }));
     p.appendChild(toggleRow('Foto-slideshow bij Live TV', 'Gedimd, zodat de zenderlijst leesbaar blijft', on('slides_live'), function () { setUi('slides_live', on('slides_live') ? 'off' : 'on'); syncSlides(); render(true); }));
     p.appendChild(choiceRow('Achtergrond', 'Kleurwas per titel, alleen de accentkleur of effen', [['wash', 'Kleurwas'], ['accent', 'Accentkleur'], ['plain', 'Effen']], store.ui('bgstyle', 'wash'), function (v) { setUi('bgstyle', v); }));
@@ -3399,6 +3402,7 @@
   }
 
   function render(keepFocus) {
+    previewStop();
     if (!(state.view === 'settings' && state.setTab === 'sources' && !state.sub)) stopRemote();
     const prev = keepFocus ? document.activeElement : null;
     const prevKey = prev && prev.dataset ? prev.dataset.k : '';
@@ -3476,9 +3480,38 @@
     }
   }
 
+  // Live picture inside the selected card: one at a time, muted, after a short pause.
+  let pvTimer = 0;
+  let pvOn = false;
+  function previewStop() {
+    clearTimeout(pvTimer);
+    if (pvOn && native && native.previewStop) { try { native.previewStop(); } catch (e) { /* ignore */ } }
+    pvOn = false;
+  }
+  function previewSoon(el) {
+    previewStop();
+    if (!native || !native.preview || !el || !el._pv || !on('livepv') || state.view !== 'home' || modalOpen()) return;
+    pvTimer = setTimeout(function () {
+      if (document.activeElement !== el || !el.isConnected || modalOpen()) return;
+      const art0 = el.querySelector('.art');
+      const rows = el.closest('.rows');
+      if (!art0 || !rows) return;
+      const r = art0.getBoundingClientRect();
+      const rr = rows.getBoundingClientRect();
+      if (r.top < rr.top + 4 || r.bottom > rr.bottom - 4 || r.left < 0 || r.right > window.innerWidth) return;
+      const d = window.devicePixelRatio || 1;
+      const rad = (parseFloat(getComputedStyle(art0).borderTopLeftRadius) || 0) * d;
+      try {
+        native.preview(el._pv, (state.source && state.source.ua) || '', Math.round(r.left * d), Math.round(r.top * d), Math.round(r.width * d), Math.round(r.height * d), Math.round(rad));
+        pvOn = true;
+      } catch (e) { /* ignore */ }
+    }, 1500);
+  }
+
   let heroTimer = 0;
   document.addEventListener('focusin', function (e) {
     const t = e.target;
+    previewSoon(t);
     if (!t) return;
     if (t._ginfo) return guideInfo(t._ginfo);
     if (t._linfo) liveInfo(t._linfo);
