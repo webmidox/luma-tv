@@ -8,6 +8,12 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.39: Rijen en navigatie
+
+- Rijen op Voor jou lopen door tot de schermrand, startpositie ongewijzigd.
+- Omhoog/omlaag gaat altijd naar de buurrij (geen overslaan meer).
+- Streaming-rij tijdelijk uitgeschakeld.
+
 ## 0.38: Voor jou compact + streaming
 
 - Hero compact: titel, regel, 2 regels beschrijving (met ...), OK = kijken.

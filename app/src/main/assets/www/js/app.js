@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.39', ['Rijen lopen nu door tot de rand van het scherm, op dezelfde plek', 'Omhoog en omlaag springt niet meer een rij over (o.a. Sport live)', 'Streaming-rij voorlopig weg']],
     ['0.38', ['Voor jou compact: titel, regel eronder, twee regels beschrijving en OK = kijken', 'De rijen schuiven onder de vaste bovenkant door', 'Streaming-rij met vierkante tegels (Netflix, Videoland, Prime enz.) uit de groepen op je server', 'Zwartere slideshow onderaan en bovenaan']],
     ['0.37', ['Bovenbalk weer effen zwart over de hele breedte, met de oranje selectie', 'Nieuwe, scherpere foto\'s in de slideshow op Voor jou', 'Het label LIVE bovenin de hero is weg; minder gespring bij het scrollen']],
     ['0.36', ['Sport op de achtergrond opgebouwd in kleine stukjes: geen vastlopen meer bij grote IPTV-lijsten']],
@@ -1348,7 +1349,7 @@
       add('sportlive', 'Sport live', sl.filter(function (e) { return e.p.start <= now0; }).slice(0, 10).map(function (e) { return matchCard(e, 'hl'); }), goTo('sport'));
     }
     {
-      const svc = streamTiles(goTo);
+      const svc = [];
       if (svc.length) add('groups', 'Streaming', svc);
       else {
         const grp = groupsOf(live).slice(0, 12);
@@ -3536,8 +3537,9 @@
         const rail = el.closest('.rail');
         if (rail) {
           const er = el.getBoundingClientRect(), lr = rail.getBoundingClientRect();
-          if (er.left < lr.left + 20) rail.scrollTo({ left: rail.scrollLeft - (lr.left + 20 - er.left), behavior: 'smooth' });
-          else if (er.right > lr.right - 20) rail.scrollTo({ left: rail.scrollLeft + (er.right - lr.right + 20), behavior: 'smooth' });
+          const pad = parseFloat(getComputedStyle(rail).paddingLeft) || 0;
+          if (er.left < lr.left + pad) rail.scrollTo({ left: rail.scrollLeft - (lr.left + pad - er.left), behavior: 'smooth' });
+          else if (er.right > lr.right - pad) rail.scrollTo({ left: rail.scrollLeft + (er.right - lr.right + pad), behavior: 'smooth' });
         }
       } else {
         rows.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3579,6 +3581,23 @@
         cands.forEach(function (e) {
           const r = e.getBoundingClientRect();
           const dist = x < 0 ? (e.classList.contains('gname') ? 0 : 1e6) : (r.left <= x && x <= r.right ? 0 : Math.min(Math.abs(r.left - x), Math.abs(r.right - x)));
+          if (dist < d) { d = dist; pick = e; }
+        });
+        if (pick) { pick.focus({ preventScroll: true }); reveal(pick); return; }
+      }
+    }
+    // Voor jou: up and down always go to the neighbouring row, on the card closest to where you are.
+    const curShelf = cur.closest('.rows .shelf');
+    if (curShelf && cur.closest('.rail') && (dir === 'up' || dir === 'down')) {
+      let sib = dir === 'down' ? curShelf.nextElementSibling : curShelf.previousElementSibling;
+      while (sib && !(sib.classList.contains('shelf') && sib.querySelector('.rail button'))) sib = dir === 'down' ? sib.nextElementSibling : sib.previousElementSibling;
+      if (sib) {
+        let pick = null;
+        let d = Infinity;
+        Array.prototype.forEach.call(sib.querySelectorAll('.rail button'), function (e) {
+          if (list.indexOf(e) < 0) return;
+          const r = e.getBoundingClientRect();
+          const dist = r.left <= ac.x && ac.x <= r.right ? 0 : Math.min(Math.abs(r.left - ac.x), Math.abs(r.right - ac.x));
           if (dist < d) { d = dist; pick = e; }
         });
         if (pick) { pick.focus({ preventScroll: true }); reveal(pick); return; }
