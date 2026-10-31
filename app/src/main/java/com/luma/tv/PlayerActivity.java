@@ -160,11 +160,12 @@ public class PlayerActivity extends Activity {
     private final List<String> done = new ArrayList<>();
     private static final float[] SPEEDS = {0.75f, 1f, 1.25f, 1.5f, 2f};
     private static final int[] SLEEPS = {0, 15, 30, 60, 90};
-    private static final String[] LIVE_ACTS = {"pp", "restart", "list", "fav", "prev", "subs", "audio", "info", "aspect", "tsback", "tsfwd", "golive", "night", "rec", "vol", "sleep"};
+    private static final String[] LIVE_ACTS = {"browse", "pp", "list", "restart", "fav", "prev", "subs", "audio", "info", "aspect", "tsback", "tsfwd", "golive", "night", "rec", "vol", "sleep"};
     private static final String[] VOD_ACTS = {"pp", "skip", "next", "speed", "subs", "audio", "info", "aspect", "night", "repeat", "stopafter", "credits", "subdelay", "sleep"};
     private SubtitleView subtitles;
     private TextView flashView;
 
+    private boolean browseOut;
     private int mode = HIDDEN;
     private int action;
     private int listSel;
@@ -451,8 +452,11 @@ public class PlayerActivity extends Activity {
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.VERTICAL);
         t.setPadding(dp(14), dp(14), dp(14), dp(12));
-        t.setBackground(rounded(0xE6161715, 4));
-        TextView title = text(17, 0xFFB9B9B9, false);
+        t.setBackground(rounded(prev ? 0xE6161715 : 0xF2000000, 4));
+        TextView lbl = text(13, 0xFFE0E0E0, true);
+        lbl.setText(prev ? "Eerder" : "Hierna");
+        t.addView(lbl);
+        TextView title = text(17, prev ? 0xFFB9B9B9 : Color.WHITE, prev ? false : true);
         title.setSingleLine(true);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         TextView time = text(15, 0xFF8F8F8F, false);
@@ -482,10 +486,7 @@ public class PlayerActivity extends Activity {
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(rounded(0xF2171816, 4));
-        View top = new View(this);
-        top.setBackgroundColor(accent);
-        card.addView(top, new LinearLayout.LayoutParams(-1, dp(2)));
+        card.setBackground(rounded(accent, 4));
         LinearLayout inner = new LinearLayout(this);
         inner.setOrientation(LinearLayout.HORIZONTAL);
         inner.setGravity(Gravity.CENTER_VERTICAL);
@@ -496,20 +497,27 @@ public class PlayerActivity extends Activity {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         titleView.setTextSize(26);
+        titleView.setTextColor(onAccent());
         titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         col.addView(titleView);
         LinearLayout tl = new LinearLayout(this);
         tl.setOrientation(LinearLayout.HORIZONTAL);
         tl.setGravity(Gravity.CENTER_VERTICAL);
-        nowTag = text(13, 0xFFE0E0E0, true);
-        nowTag.setText("NU");
+        nowTag = text(13, onAccent(), true);
+        nowTag.setText("Nu");
         timeView.setTextSize(18);
         timeView.setGravity(Gravity.START);
-        timeView.setTextColor(Color.WHITE);
+        timeView.setTextColor(onAccent());
         timeView.setPadding(dp(12), 0, 0, 0);
         tl.addView(nowTag);
         tl.addView(timeView);
         col.addView(tl);
+        subView.setSingleLine(false);
+        subView.setMaxLines(2);
+        subView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        subView.setTextSize(15);
+        subView.setTextColor(onAccent());
+        col.addView(subView);
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -2, 1f);
         cl.setMargins(dp(16), 0, dp(12), 0);
         inner.addView(col, cl);
@@ -517,10 +525,11 @@ public class PlayerActivity extends Activity {
         dots.setText("•••");
         dots.setGravity(Gravity.CENTER);
         dots.setPadding(dp(28), dp(12), dp(28), dp(12));
-        dots.setBackground(rounded(accent, 4));
+        dots.setBackground(rounded(0x33000000, 4));
         inner.addView(dots, new LinearLayout.LayoutParams(-2, -2));
         card.addView(inner);
-        bar.setProgressBackgroundTintList(ColorStateList.valueOf(0x55FFFFFF));
+        bar.setProgressBackgroundTintList(ColorStateList.valueOf(0x44000000));
+        bar.setProgressTintList(ColorStateList.valueOf(onAccent()));
         card.addView(bar, new LinearLayout.LayoutParams(-1, dp(5)));
         row.addView(card, new LinearLayout.LayoutParams(0, -2, 1f));
 
@@ -1380,6 +1389,7 @@ public class PlayerActivity extends Activity {
         switch (a) {
             case "pp": return player != null && !player.getPlayWhenReady() ? (live && !onFile && !shiftOn ? "▶ Hervatten bij live" : "▶") : "II";
             case "restart": return "↺";
+            case "browse": return "▦ Browse";
             case "list": return "≡ Lijst";
             case "fav": return favs.contains(items.get(index).id) ? "★ Favoriet" : "☆ Favoriet";
             case "prev": return "⟲ Vorige";
@@ -1529,6 +1539,10 @@ public class PlayerActivity extends Activity {
             case "restart":
                 restartShow();
                 break;
+            case "browse":
+                browseOut = true;
+                finishWithResult();
+                return;
             case "list":
                 setMode(LIST);
                 return;
@@ -1816,6 +1830,7 @@ public class PlayerActivity extends Activity {
         try {
             o.put("id", items.get(index).id);
             o.put("live", live);
+            o.put("browse", browseOut);
             o.put("ended", ended);
             long dur = player == null ? C.TIME_UNSET : player.getDuration();
             o.put("position", player == null ? 0 : player.getCurrentPosition());

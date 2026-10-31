@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.47', ['Live TV-knop start de zender waar je was gebleven', 'OK op de zender: nieuwe balk (Nu / Hierna) met een Browse-knop', 'Browse opent de TV-gids met slideshow-hero bovenin; Terug brengt je terug naar live']],
     ['0.46', ['Live TV heeft weer een zwarte achtergrond']],
     ['0.45', ['Live TV opnieuw: zenders bovenin, categorieën links en een kleine gids rechts (zoals Google TV)', 'Met de slideshow van Live TV; de oude weergave staat nog in Instellingen']],
     ['0.44', ['Streaming-rij terug op Voor jou met logo\'s (Netflix, Prime, Disney+, Videoland, Peacock, SkyShowtime, Joyn)', 'Kies je een dienst, dan zie je alleen de categorieën van die dienst links en de films of series rechts']],
@@ -371,7 +372,7 @@
     const box = $('slides');
     if (!box) return;
     const key = state.view === 'home' && !state.show ? 'home' : state.view === 'live' && !state.show ? 'live' : '';
-    const black = state.view === 'live' && !state.show && !!state.lib && liveNew();
+    const black = false;
     document.body.classList.toggle('blk', black);
     const want = !!key && !black && !!state.lib && on('homeslides') && on('slides_' + key) && SLIDESETS[key].length > 0;
     box.classList.toggle('on', want);
@@ -840,6 +841,17 @@
     return '';
   }
 
+  /** Live TV button: start the channel watched last. Returns false when there is none (then the guide opens). */
+  function liveResume() {
+    if (!native || !state.lib || !liveNew()) return false;
+    const rid = store.recent()[0];
+    const list = vis('live');
+    const i = list.findIndex(function (c) { return c.id === rid; });
+    if (i < 0) return false;
+    play(list, i);
+    return true;
+  }
+
   window.lumaPlayerClosed = function (res) {
     if (native) native.clearNow();
     if (!res || !res.id) return;
@@ -860,6 +872,7 @@
       });
       if (dur && (res.ended || res.position >= 0.95 * dur)) store.markWatched(res.id);
     }
+    if (res.live && res.browse) { state.browseNext = true; go('live'); return; }
     render(true);
   };
 
@@ -869,6 +882,7 @@
     if (modalOpen()) { closeModal(); return true; }
     if (state.show) { state.show = null; render(); return true; }
     if (state.view === 'settings' && state.sub) { state.sub = null; render(); return true; }
+    if (state.view === 'live' && !state.show && liveResume()) return true;
     if (state.view !== 'home') { go('home'); return true; }
     return false;
   };
@@ -1568,6 +1582,9 @@
     const logo = h('button', { class: 'lc2', type: 'button', 'data-k': c.id, onclick: function () { play(list, i); },
       style: c.logo ? { backgroundImage: art(c.logo) } : null }, [c.logo ? null : h('span', { text: (c.name || '?').slice(0, 3).toUpperCase() }), store.isFav(c.id) ? h('i', { class: 'fv', text: '★' }) : null]);
     logo._lp = function () { channelMenu(c); };
+    const li = liveRowInfo(c);
+    li.tag = ''; li.hint = 'OK = kijken'; li.sub = (c.no ? c.no + ' · ' : '') + c.name;
+    logo._info = li;
     const track = h('div', { class: 'etrack' });
     const progs = state.epg ? state.epg.forChannel(c).filter(function (p) { return p.stop > w.ws + 60000 && p.start < w.we - 60000; }) : [];
     progs.forEach(function (p) {
@@ -1576,7 +1593,8 @@
       if ((r - l) * GUIDE_MIN / 100 < 8) return;
       const live = p.start <= Date.now() && p.stop > Date.now();
       const b = h('button', { class: 'eb' + (live ? ' now' : ''), type: 'button', 'data-k': c.id + '|' + p.start, style: { left: l + '%', width: 'calc(' + (r - l) + '% - .8rem)' },
-        onclick: function () { if (live) play(list, i); else progMenu(c, p, false); } }, [h('span', { text: (p.start < w.ws - 60000 ? '‹ ' : '') + p.title })]);
+        onclick: function () { if (live) play(list, i); else progMenu(c, p, false); } }, [h('span', { class: 'et', text: (p.start < w.ws - 60000 ? '‹ ' : '') + p.title }), h('span', { class: 'ew', text: U.clock(p.start) + ' – ' + U.clock(p.stop) })]);
+      b._info = { title: p.title, sub: (c.no ? c.no + ' · ' : '') + c.name + ' · ' + U.clock(p.start) + ' – ' + U.clock(p.stop) + (live ? ' · nu' : ''), desc: p.desc || '', tag: '', hint: live ? 'OK = kijken' : 'OK = menu', key: c.id + p.start, name: p.title, mkind: /serie/i.test(p.cat || '') ? 'series' : 'vod' };
       b._lp = function () { progMenu(c, p, live); };
       track.appendChild(b);
     });
@@ -1614,16 +1632,8 @@
   function vLive2() {
     const all = vis('live');
     setHero({ title: '', key: 'luma' });
-    const root = h('div', { class: 'lvw' });
-    const feat = liveFeature(all);
-    const fcards = feat.map(function (c, i) {
-      const el = liveCard(c, feat, i);
-      const nn = nowInfo(c);
-      if (nn.now) { const t = el.querySelector('.t'); const s = el.querySelector('.s'); if (t) t.textContent = nn.now.title; if (s) s.textContent = c.name; }
-      return el;
-    });
-    root.appendChild(h('div', { class: 'lvtop' }, [h('h2', { text: 'Nu live' }), h('div', { class: 'rail' }, fcards)]));
-
+    const root = h('div', { class: 'lvw hmw' });
+    root.appendChild(heroBlock());
     const counts = {};
     all.forEach(function (c) { counts[c.group] = (counts[c.group] || 0) + 1; });
     const cats = [['', 'Alle zenders', all.length, '📺']];
@@ -1641,6 +1651,7 @@
         if (f) f.focus({ preventScroll: true });
       } }, [h('span', { class: 'ci', text: c[3] || (c[1] || '?').trim().slice(0, 1).toUpperCase() }), h('span', { class: 'cx' }, [h('span', { class: 'cn', text: c[1] }), h('span', { class: 'cc', text: c[2] + ' zenders' })])]);
       b._ck = c[0];
+      b._info = { title: c[1], sub: c[2] + ' zenders', desc: '', tag: '', hint: '', key: 'cat' + c[0] };
       if (c[0] && c[0].indexOf('__') !== 0) b._lp = function () { groupMenu(c[0]); };
       return b;
     }));
@@ -3619,7 +3630,7 @@
   document.addEventListener('keydown', function () { autoFocus = false; }, true);
   function focusFirst() {
     autoFocus = true;
-    const t = viewEl.querySelector('.hmw .rail button') || viewEl.querySelector('.lvtop .card') || viewEl.querySelector('.gp.now') || viewEl.querySelector('.lch') || viewEl.querySelector('.split .card') || viewEl.querySelector('.gname') || viewEl.querySelector('button, input');
+    const t = viewEl.querySelector('.hmw .rail button') || viewEl.querySelector('.lvrows .eb.now') || viewEl.querySelector('.lvtop .card') || viewEl.querySelector('.gp.now') || viewEl.querySelector('.lch') || viewEl.querySelector('.split .card') || viewEl.querySelector('.gname') || viewEl.querySelector('button, input');
     const target = t || navEl.querySelector('button');
     target.focus({ preventScroll: true });
     if (target._info) heroFor(target._info);
@@ -3634,6 +3645,11 @@
     }
     open();
     function open() {
+      if (view === 'live') {
+        const br = state.browseNext;
+        state.browseNext = false;
+        if (!br && liveResume()) return;
+      }
       state.view = view;
       state.show = null;
       state.sub = null;

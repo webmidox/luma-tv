@@ -328,3 +328,8 @@ Zachte poster- en achtergrondbeelden met een geblurde kleurlaag eromheen (niets 
 - Home: Live en straks (LIVE-label, voortgang, straks), ronde Groepen, Alles bekijken bij elke rij.
 - Gids: Nu / Straks-weergave naast het tijdrooster. Films en Series: uitgelichte kaarten.
 - Navigatie als oranje pil; profielscherm met grote focus.
+
+## 0.47
+- Live TV-knop start de laatst bekeken zender.
+- OK-balk in de speler in Peacock-stijl (Nu / Hierna) met Browse-knop.
+- Browse opent de TV-gids met Live TV-slideshow als hero; Terug hervat live.

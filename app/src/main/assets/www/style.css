@@ -441,7 +441,8 @@ body.calm *{transition:none!important;animation:none!important}
 #intro-status { color: #d5d2e0; text-shadow: 0 .2rem 1.4rem rgba(0,0,0,.8); }
 
 /* ---- Live TV, Google TV stijl ---- */
-.lvw { height: 100vh; display: flex; flex-direction: column; padding-top: 13.4rem; box-sizing: border-box; }
+.lvw { height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+.lvw .hero { height: 38rem; }
 .lvtop { flex: none; }
 .lvtop h2 { margin: 0; font-size: 3rem; font-weight: 500; }
 .lvtop .rail { margin: 0 -10rem; padding: 1.2rem 10rem 0.4rem; }
@@ -450,8 +451,8 @@ body.calm *{transition:none!important;animation:none!important}
 .lvtop .card .meta { padding-top: 0.8rem; }
 .lvtop .card .t { font-size: 2.3rem; }
 .lvtop .card .s { font-size: 1.9rem; }
-.lvlow { flex: 1; min-height: 0; display: flex; gap: 4rem; padding: 1.4rem 0 2.4rem; }
-.lvcats { flex: none; width: 40rem; margin: 0; padding: 0.6rem 1rem 3rem 0; }
+.lvlow { flex: 1; min-height: 0; display: flex; gap: 3rem; padding: 1.4rem 0 2.4rem; margin: 0 -10rem; padding-left: 10rem; padding-right: 10rem; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.78) 5rem); }
+.lvcats { flex: none; width: 27rem; margin: 0; padding: 0.6rem 1rem 3rem 0; }
 .lcat2 { display: flex; align-items: center; gap: 2rem; width: 100%; padding: 1.1rem 1.6rem; margin-bottom: 0.4rem; border-radius: 99rem; color: var(--dim); text-align: left; transition: background .18s, color .18s; }
 .lcat2 .ci { flex: none; width: 6.4rem; height: 6.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--tx); font-size: 2.8rem; font-weight: 600; }
 .lcat2 .cx { display: flex; flex-direction: column; min-width: 0; }
@@ -482,3 +483,20 @@ body.calm *{transition:none!important;animation:none!important}
 
 body.blk, body.blk #app { background: #000 !important; }
 body.blk #backdrop, body.blk #bdfill, body.blk #shade { display: none !important; }
+
+/* Live TV gids: gewone tekstlijst links, programmablokken met titel en tijd */
+.lcat2 { padding: .9rem 1.4rem; border-radius: 1rem; gap: 0; }
+.lcat2 .ci, .lcat2 .cc { display: none; }
+.lcat2 .cn { font-size: 2.4rem; }
+.lcat2.on .cn { font-weight: 700; }
+.eb { flex-direction: column; align-items: flex-start; justify-content: center; gap: .3rem; background: rgba(255,255,255,.12); }
+.eb .et { font-size: 2.3rem; max-width: 100%; }
+.eb .ew { font-size: 1.8rem; color: var(--dim); white-space: nowrap; }
+.eb:focus .ew { color: inherit; opacity: .7; }
+.eb.now { background: rgba(255,255,255,.2); }
+.lc2 { background-color: rgba(255,255,255,.12); width: 13rem; }
+.lvnow { left: 14.6rem; }
+.lvdate { width: 13rem; }
+.lvw .hero { padding-top: 2rem; }
+.eb:focus, .lc2:focus { background-color: var(--tx); color: var(--bg); }
+.lc2:focus { background-color: var(--tx); }
