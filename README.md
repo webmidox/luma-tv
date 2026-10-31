@@ -8,6 +8,12 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.45: Live TV in Google TV-stijl
+
+- Bovenin 8 willekeurige live zenders (wisselt bij elk bezoek), links categorieën, rechts een kleine gids met zendericoon en programma's (150 min, rode nu-lijn).
+- Een categorie selecteren (zonder OK) toont meteen de gids van die groep.
+- Met de Live TV-slideshow; de oude drie kolommen blijven kiesbaar bij Instellingen > Uiterlijk > Live TV-weergave.
+
 ## 0.44: Streamingdiensten
 
 - Rij Streaming op Voor jou: een vierkante tegel per dienst die in de groepen van je server staat. Logo's staan in `img/streaming/<id>.png` (512x512); nieuwe dienst = bestand erbij en een regel in STREAMS (app.js).
