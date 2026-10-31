@@ -333,3 +333,7 @@ Zachte poster- en achtergrondbeelden met een geblurde kleurlaag eromheen (niets 
 - Live TV-knop start de laatst bekeken zender.
 - OK-balk in de speler in Peacock-stijl (Nu / Hierna) met Browse-knop.
 - Browse opent de TV-gids met Live TV-slideshow als hero; Terug hervat live.
+
+## 0.48
+- Speler: OK-balk in de stijl van het voorbeeld (Nu-blok, Hierna-blok, volgende zenders).
+- TV-gids opnieuw in de stijl van het voorbeeld.

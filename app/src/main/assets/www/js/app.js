@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.48', ['OK-balk in de speler precies zoals het voorbeeld: oranje blok (Nu), zwart blok (Hierna) en de volgende zenders eronder', 'TV-gids in de stijl van het voorbeeld: marineblauw, blauwe programmablokken, gele selectie, zendernaam met nummer']],
     ['0.47', ['Live TV-knop start de zender waar je was gebleven', 'OK op de zender: nieuwe balk (Nu / Hierna) met een Browse-knop', 'Browse opent de TV-gids met slideshow-hero bovenin; Terug brengt je terug naar live']],
     ['0.46', ['Live TV heeft weer een zwarte achtergrond']],
     ['0.45', ['Live TV opnieuw: zenders bovenin, categorieën links en een kleine gids rechts (zoals Google TV)', 'Met de slideshow van Live TV; de oude weergave staat nog in Instellingen']],
@@ -1579,8 +1580,8 @@
 
   function guideRow(c, list, i, w) {
     const nn = nowInfo(c);
-    const logo = h('button', { class: 'lc2', type: 'button', 'data-k': c.id, onclick: function () { play(list, i); },
-      style: c.logo ? { backgroundImage: art(c.logo) } : null }, [c.logo ? null : h('span', { text: (c.name || '?').slice(0, 3).toUpperCase() }), store.isFav(c.id) ? h('i', { class: 'fv', text: '★' }) : null]);
+    const logoEl = h('div', { class: 'lclogo', style: c.logo ? { backgroundImage: art(c.logo) } : null }, [c.logo ? null : h('span', { text: (c.name || '?').slice(0, 3).toUpperCase() })]);
+    const logo = h('button', { class: 'lc2', type: 'button', 'data-k': c.id, onclick: function () { play(list, i); } }, [h('span', { class: 'ln', text: c.name }), h('span', { class: 'lno', text: c.no || '' }), store.isFav(c.id) ? h('i', { class: 'fv', text: '★' }) : null]);
     logo._lp = function () { channelMenu(c); };
     const li = liveRowInfo(c);
     li.tag = ''; li.hint = 'OK = kijken'; li.sub = (c.no ? c.no + ' · ' : '') + c.name;
@@ -1599,7 +1600,7 @@
       track.appendChild(b);
     });
     if (!progs.length) track.appendChild(h('button', { class: 'eb none', type: 'button', style: { left: '0%', width: 'calc(100% - .8rem)' }, onclick: function () { play(list, i); } }, [h('span', { text: nn.now ? nn.now.title : (state.epg && state.epg.size ? 'Geen gidsgegevens' : 'Gids wordt geladen…') })]));
-    return h('div', { class: 'erow' }, [logo, track]);
+    return h('div', { class: 'erow' }, [logoEl, logo, track]);
   }
 
   function fillGuide(scope) {
@@ -1658,7 +1659,7 @@
     const w = guideWindow();
     const d = new Date();
     const gbody = h('div', { class: 'lvbody' }, [h('div', { class: 'lcol lvrows' }), h('div', { class: 'lvnow' }, [h('i', { style: { left: pctOf(Date.now(), w) + '%' } })])]);
-    const guide = h('div', { class: 'lvg' }, [h('div', { class: 'lvhead' }, [h('span', { class: 'lvdate', text: DAYN[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1) }), guideTimes(w)]), gbody]);
+    const guide = h('div', { class: 'lvg' }, [h('div', { class: 'lvhead' }, [h('span', { class: 'lvdate', text: 'Vandaag · ' + DAYN[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() }), guideTimes(w)]), gbody]);
     root.appendChild(h('div', { class: 'lvlow' }, [catBox, guide]));
     fillGuide(root);
     return root;

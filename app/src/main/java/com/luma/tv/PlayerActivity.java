@@ -472,79 +472,113 @@ public class PlayerActivity extends Activity {
         return t;
     }
 
-    /** The live info bar: previous programme, the programme on now with logo, times and progress, and the next one. */
+    private final TextView[] rowNow = new TextView[2];
+    private final TextView[] rowNext = new TextView[2];
+    private final ImageView[] rowLogo = new ImageView[2];
+    private final LinearLayout[] chRows = new LinearLayout[2];
+
+    /** The live info bar in streaming-app style: what is on now (accent block) next to what comes next (black block), then the next channels. */
     private void buildLiveBar(FrameLayout root) {
-        bottom.setPadding(dp(32), dp(90), dp(32), dp(26));
+        bottom.setPadding(dp(40), dp(90), dp(40), dp(26));
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.HORIZONTAL);
+        nowTag = text(18, Color.WHITE, true);
+        nowTag.setText("Nu");
+        labels.addView(nowTag, new LinearLayout.LayoutParams(0, -2, 1.7f));
+        TextView hn = text(18, Color.WHITE, true);
+        hn.setText("Hierna");
+        hn.setPadding(dp(18), 0, 0, 0);
+        labels.addView(hn, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lbp = new LinearLayout.LayoutParams(-1, -2);
+        lbp.setMargins(dp(4), 0, 0, dp(8));
+        bottom.addView(labels, lbp);
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        prevTile = sideTile(true);
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(190), -2);
-        pl.setMargins(0, 0, dp(14), 0);
-        row.addView(prevTile, pl);
+        row.setBaselineAligned(false);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(rounded(accent, 4));
+        card.setBackground(rounded(accent, 6));
         LinearLayout inner = new LinearLayout(this);
         inner.setOrientation(LinearLayout.HORIZONTAL);
         inner.setGravity(Gravity.CENTER_VERTICAL);
-        inner.setPadding(dp(18), dp(12), dp(18), dp(8));
+        inner.setPadding(dp(22), dp(14), dp(22), dp(12));
         mainLogo = new ImageView(this);
         mainLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        inner.addView(mainLogo, new LinearLayout.LayoutParams(dp(60), dp(60)));
+        inner.addView(mainLogo, new LinearLayout.LayoutParams(dp(64), dp(64)));
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        titleView.setTextSize(26);
+        titleView.setTextSize(24);
         titleView.setTextColor(onAccent());
         titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         col.addView(titleView);
-        LinearLayout tl = new LinearLayout(this);
-        tl.setOrientation(LinearLayout.HORIZONTAL);
-        tl.setGravity(Gravity.CENTER_VERTICAL);
-        nowTag = text(13, onAccent(), true);
-        nowTag.setText("Nu");
-        timeView.setTextSize(18);
-        timeView.setGravity(Gravity.START);
-        timeView.setTextColor(onAccent());
-        timeView.setPadding(dp(12), 0, 0, 0);
-        tl.addView(nowTag);
-        tl.addView(timeView);
-        col.addView(tl);
-        subView.setSingleLine(false);
-        subView.setMaxLines(2);
+        subView.setSingleLine(true);
         subView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        subView.setTextSize(15);
+        subView.setTextSize(16);
         subView.setTextColor(onAccent());
         col.addView(subView);
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -2, 1f);
-        cl.setMargins(dp(16), 0, dp(12), 0);
+        cl.setMargins(dp(20), 0, dp(14), 0);
         inner.addView(col, cl);
-        TextView dots = text(22, onAccent(), true);
-        dots.setText("•••");
-        dots.setGravity(Gravity.CENTER);
-        dots.setPadding(dp(28), dp(12), dp(28), dp(12));
-        dots.setBackground(rounded(0x33000000, 4));
-        inner.addView(dots, new LinearLayout.LayoutParams(-2, -2));
+        timeView.setTextSize(16);
+        timeView.setGravity(Gravity.END);
+        timeView.setTextColor(onAccent());
+        inner.addView(timeView, new LinearLayout.LayoutParams(-2, -2));
         card.addView(inner);
         bar.setProgressBackgroundTintList(ColorStateList.valueOf(0x44000000));
         bar.setProgressTintList(ColorStateList.valueOf(onAccent()));
         card.addView(bar, new LinearLayout.LayoutParams(-1, dp(5)));
-        row.addView(card, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(card, new LinearLayout.LayoutParams(0, -2, 1.7f));
 
-        nextTile = sideTile(false);
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(dp(190), -2);
-        nl.setMargins(dp(14), 0, 0, 0);
-        row.addView(nextTile, nl);
+        nextTile = new LinearLayout(this);
+        nextTile.setOrientation(LinearLayout.HORIZONTAL);
+        nextTile.setGravity(Gravity.CENTER_VERTICAL);
+        nextTile.setPadding(dp(18), dp(14), dp(22), dp(14));
+        nextTile.setBackground(rounded(0xFF000000, 6));
+        nextTitle = text(24, Color.WHITE, true);
+        nextTitle.setSingleLine(true);
+        nextTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nextTile.addView(nextTitle, new LinearLayout.LayoutParams(0, -2, 1f));
+        nextTime = text(16, Color.WHITE, false);
+        nextTime.setPadding(dp(12), 0, 0, 0);
+        nextTile.addView(nextTime, new LinearLayout.LayoutParams(-2, -2));
+        row.addView(nextTile, new LinearLayout.LayoutParams(0, -1, 1f));
         bottom.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+        for (int i = 0; i < 2; i++) {
+            LinearLayout r = new LinearLayout(this);
+            r.setOrientation(LinearLayout.HORIZONTAL);
+            r.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout left = new LinearLayout(this);
+            left.setOrientation(LinearLayout.HORIZONTAL);
+            left.setGravity(Gravity.CENTER_VERTICAL);
+            left.setPadding(dp(22), dp(7), 0, dp(7));
+            rowLogo[i] = new ImageView(this);
+            rowLogo[i].setScaleType(ImageView.ScaleType.FIT_CENTER);
+            left.addView(rowLogo[i], new LinearLayout.LayoutParams(dp(64), dp(34)));
+            rowNow[i] = text(19, 0xFFE8E8E8, true);
+            rowNow[i].setSingleLine(true);
+            rowNow[i].setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(0, -2, 1f);
+            nlp.setMargins(dp(20), 0, dp(10), 0);
+            left.addView(rowNow[i], nlp);
+            r.addView(left, new LinearLayout.LayoutParams(0, -2, 1.7f));
+            rowNext[i] = text(19, 0xFFE8E8E8, true);
+            rowNext[i].setSingleLine(true);
+            rowNext[i].setEllipsize(android.text.TextUtils.TruncateAt.END);
+            rowNext[i].setPadding(dp(18), 0, dp(10), 0);
+            r.addView(rowNext[i], new LinearLayout.LayoutParams(0, -2, 1f));
+            chRows[i] = r;
+            bottom.addView(r, new LinearLayout.LayoutParams(-1, -2));
+        }
 
         bottom.addView(descView);
         LinearLayout.LayoutParams ar = new LinearLayout.LayoutParams(-2, -2);
-        ar.setMargins(dp(8), dp(14), 0, 0);
+        ar.setMargins(dp(4), dp(12), 0, 0);
         bottom.addView(actionsRow, ar);
         LinearLayout.LayoutParams or2 = new LinearLayout.LayoutParams(-2, -2);
-        or2.setMargins(dp(8), dp(10), 0, 0);
+        or2.setMargins(dp(4), dp(10), 0, 0);
         bottom.addView(optsRow, or2);
 
         topBar = new LinearLayout(this);
@@ -1315,10 +1349,10 @@ public class PlayerActivity extends Activity {
             titleView.setText(n >= 0 ? it.pt[n] : it.title);
             String dd = n >= 0 ? it.pd[n] : "";
             if (dd.length() > 110) dd = dd.substring(0, 107) + "...";
-            subView.setText(dd.isEmpty() ? it.group : dd);
+            subView.setText(dd.isEmpty() ? it.group : dd.replace('\n', ' '));
             nextView.setText(it.title + (x >= 0 ? "   ·   Hierna: " + it.pt[x] + " (" + hm(it.ps[x]) + ")" : ""));
             nextView.setVisibility(View.VISIBLE);
-            if (items.size() > 1 && mode != LIST) {
+            if (false) {
                 Item nx = items.get((index + 1) % items.size());
                 int nn = progNow(nx, now);
                 peekView.setText("▼ " + (nx.num > 0 ? nx.num + "  " : "") + nx.title + (nn >= 0 ? "\n" + nx.pt[nn] : ""));
@@ -1355,6 +1389,20 @@ public class PlayerActivity extends Activity {
                 bar.setProgress((int) (1000L * (now - it.ps[n]) / (it.pe[n] - it.ps[n])));
             } else {
                 bar.setVisibility(View.GONE);
+            }
+            if (nowTag != null) nowTag.setText("Nu · " + hm(now));
+            for (int ri = 0; ri < 2; ri++) {
+                if (chRows[ri] == null) continue;
+                if (items.size() > ri + 1) {
+                    Item cx = items.get((index + 1 + ri) % items.size());
+                    int cn = progNow(cx, now);
+                    int cnx = progNext(cx, now);
+                    rowNow[ri].setText(cn >= 0 ? cx.pt[cn] : cx.title);
+                    rowNext[ri].setText(cnx >= 0 ? cx.pt[cnx] : "");
+                    rowLogo[ri].setImageDrawable(null);
+                    loadLogo(cx.logo, rowLogo[ri]);
+                    chRows[ri].setVisibility(View.VISIBLE);
+                } else chRows[ri].setVisibility(View.GONE);
             }
             paintActions();
             paintRecent(now);
