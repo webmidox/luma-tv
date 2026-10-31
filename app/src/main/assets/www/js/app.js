@@ -39,6 +39,7 @@
   };
   const GPX = 0.9; // rem per minute in the guide
   const RELEASES = [
+    ['0.46', ['Live TV heeft weer een zwarte achtergrond']],
     ['0.45', ['Live TV opnieuw: zenders bovenin, categorieën links en een kleine gids rechts (zoals Google TV)', 'Met de slideshow van Live TV; de oude weergave staat nog in Instellingen']],
     ['0.44', ['Streaming-rij terug op Voor jou met logo\'s (Netflix, Prime, Disney+, Videoland, Peacock, SkyShowtime, Joyn)', 'Kies je een dienst, dan zie je alleen de categorieën van die dienst links en de films of series rechts']],
     ['0.43', ['Profielkeuze komt altijd na het laadscherm (uit te zetten in Instellingen)', 'Live en straks en Sport live staan meteen goed, ook als er een melding open stond']],
@@ -370,7 +371,9 @@
     const box = $('slides');
     if (!box) return;
     const key = state.view === 'home' && !state.show ? 'home' : state.view === 'live' && !state.show ? 'live' : '';
-    const want = !!key && !!state.lib && on('homeslides') && on('slides_' + key) && SLIDESETS[key].length > 0;
+    const black = state.view === 'live' && !state.show && !!state.lib && liveNew();
+    document.body.classList.toggle('blk', black);
+    const want = !!key && !black && !!state.lib && on('homeslides') && on('slides_' + key) && SLIDESETS[key].length > 0;
     box.classList.toggle('on', want);
     box.classList.toggle('dim', key === 'live' && !liveNew());
     if (want && slideSet !== key) { slideSet = key; slideIdx = -1; slideShow(0); }

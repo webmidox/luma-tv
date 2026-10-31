@@ -8,6 +8,10 @@ Luma TV is een speler, geen aanbieder. Je voert zelf de gegevens van je eigen IP
 
 ---
 
+## 0.46: Live TV zwart
+
+- Live TV (nieuwe weergave) heeft een effen zwarte achtergrond, zonder slideshow.
+
 ## 0.45: Live TV in Google TV-stijl
 
 - Bovenin 8 willekeurige live zenders (wisselt bij elk bezoek), links categorieën, rechts een kleine gids met zendericoon en programma's (150 min, rode nu-lijn).

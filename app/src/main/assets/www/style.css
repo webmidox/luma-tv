@@ -479,3 +479,6 @@ body.calm *{transition:none!important;animation:none!important}
 .lvnow { position: absolute; top: 0; bottom: 0; left: 16.6rem; right: 0.6rem; pointer-events: none; z-index: 2; }
 .lvnow i { position: absolute; top: 0; bottom: 0; width: .3rem; background: #e53935; border-radius: .2rem; }
 .lvtimes .lvnowl { color: var(--tx); }
+
+body.blk, body.blk #app { background: #000 !important; }
+body.blk #backdrop, body.blk #bdfill, body.blk #shade { display: none !important; }
